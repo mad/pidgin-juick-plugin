@@ -20,6 +20,8 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
   char *t;
   char *startnew, *new;
   char *start, *end;
+  char prev = 0;
+  char firsttag = 0;
   int i = 0;
 
   if(!strstr(who, juick))
@@ -39,8 +41,6 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
       do {
         t++;
       } while(isdigit(*t) || *t == '/');
-      if(*t == 0)
-        end = --t;
       end = t;
       if((end - start) > 5 && (end - start) < 20) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
@@ -53,15 +53,16 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
       } else {
         t = start;
       }
-    } else if(*t == '@') {
+    } else if(*t == '@' && !isalpha(prev) && !isdigit(prev)) {
       start = t;
       do {
         t++;
-      } while(*t != ' ' && *t != ':' && *t != 0);
-      if(*t == 0)
-        end = --t;
+      } while(isalpha(*t) || isdigit(*t) || *t == '-');
+      // FIXME: make tag only first *abcd
+      if(*t == ':')
+	firsttag = 0;
       end = t;
-      if((end - start) > 1 && (end - start) < 30) {
+      if((end - start) > 1 && (end - start) < 17) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
@@ -72,25 +73,25 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
       } else {
         t = start;
       }
-    } else  if(*t == '*') {
+    } else  if(*t == '*' && !firsttag && (prev == '\n' || prev == '>')) {
       start = t;
       do {
         t++;
-      } while(*t != ' ' && *t != ':' && *t != 0);
-      if(*t == 0)
-        end = --t;
+      } while(*t != ' ' && *t != ':' && *t != 0 && *t != '\n');
       end = t;
       if((end - start) > 1  && (end - start) < 30) {
         strcat(new, "<FONT COLOR=\"#999999\"><I>");
         strncat(new, start, end - start);
         strcat(new, "</I></FONT>");
         i += 36 + end - start;
+	firsttag = 1;
         continue;
       } else {
         t = start;
       }
     }
     new[i] = *t;
+    prev = *t;
     i++;
     t++;
   }
