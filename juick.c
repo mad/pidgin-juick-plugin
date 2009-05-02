@@ -5,6 +5,7 @@
 #include "internal.h"
 
 #include "version.h"
+#include "debug.h"
 
 #include "pidgin.h"
 
@@ -12,9 +13,10 @@
 #include "gtkplugin.h"
 
 static const char *juick = "juick@juick.com";
+int id_last_reply = 0;
 
 static gboolean
-displaying_msg(PurpleAccount *account, const char *who, char **displaying,
+markup_msg(PurpleAccount *account, const char *who, char **displaying,
                PurpleConversation *conv, PurpleMessageFlags flags)
 {
   char *t;
@@ -53,12 +55,14 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
       } else {
         t = start;
       }
+      /* mb mail? */
     } else if(*t == '@' && !isalpha(prev) && !isdigit(prev)) {
       start = t;
       do {
         t++;
-      } while(isalpha(*t) || isdigit(*t) || *t == '-');
-      // FIXME: make tag only first *abcd
+	// XXX: mb @juick@juick.com
+      } while(isalpha(*t) || isdigit(*t) || *t == '-' || *t == '@');
+      // XXX: make tag only first *abcd
       if(*t == ':')
 	firsttag = 0;
       end = t;
@@ -105,6 +109,30 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
   return FALSE;
 }
 
+static gboolean
+intercept_sent(PurpleAccount *account, const char *who, char **message, void* pData)
+{
+  char *msg;
+
+  if (message == NULL || *message == NULL || **message == '\0')
+    return FALSE;
+
+  if(!strstr(who, juick))
+    return FALSE;
+
+  msg = *message;
+
+  while(*msg == ' ' || *msg == '\n' || *msg == '\t') msg++;
+
+  if(*msg == '#') {
+    msg++;
+    id_last_reply = atoi(msg);
+      purple_debug_misc("purple-juick", "Juick-plugin: mem last reply %d\n",
+			id_last_reply);
+  }
+  return TRUE;
+}
+
 static void
 cmd_button_cb(GtkButton *button, PidginConversation *gtkconv)
 {
@@ -114,62 +142,70 @@ cmd_button_cb(GtkButton *button, PidginConversation *gtkconv)
   const char *label;
   const char *name;
 
+  char tmp[80];
+
   name = purple_conversation_get_name(conv);
   account = purple_conversation_get_account(conv);
   connection = purple_conversation_get_gc(conv);
   label = gtk_button_get_label(button);
 
-  if(strcmp(label, "Pop blogs") == 0) {
-    serv_send_im(connection, juick, "@", PURPLE_MESSAGE_SEND);
-  } else if(strcmp(label, "Last") == 0) {
+  if(strcmp(label, "last reply") == 0) {
+    purple_debug_misc("purple-juick", "Juick-plugin: last reply button %d\n",
+		      id_last_reply);
+    if(id_last_reply) {
+      sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
+	      id_last_reply);
+      system(tmp);
+    }
+  } else if(strcmp(label, "last msg") == 0) {
     serv_send_im(connection, juick, "#", PURPLE_MESSAGE_SEND);
   }
 }
 
 static void
-create_send_button_pidgin(PidginConversation *gtkconv)
+create_juick_button_pidgin(PidginConversation *gtkconv)
 {
-  GtkWidget *send_button, *last_button;
+  GtkWidget *last_reply_button, *last_button;
 
-  send_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "send_button");
+  last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
   last_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_button");
 
-  if (send_button || last_button)
+  if (last_reply_button || last_button)
     return;
 
-  send_button = gtk_button_new_with_label(_("Pop blogs"));
-  last_button = gtk_button_new_with_label(_("Last"));
+  last_reply_button = gtk_button_new_with_label(_("last reply"));
+  last_button = gtk_button_new_with_label(_("last msg"));
 
-  g_signal_connect(G_OBJECT(send_button), "clicked",
+  g_signal_connect(G_OBJECT(last_reply_button), "clicked",
                    G_CALLBACK(cmd_button_cb), gtkconv);
   g_signal_connect(G_OBJECT(last_button), "clicked",
                    G_CALLBACK(cmd_button_cb), gtkconv);
 
-  gtk_box_pack_start(GTK_BOX(gtkconv->toolbar), send_button,
+  gtk_box_pack_start(GTK_BOX(gtkconv->toolbar), last_reply_button,
                      FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(gtkconv->toolbar), last_button,
                      FALSE, FALSE, 0);
 
-  gtk_widget_show(send_button);
+  gtk_widget_show(last_reply_button);
   gtk_widget_show(last_button);
 
-  g_object_set_data(G_OBJECT(gtkconv->toolbar), "send_button", send_button);
+  g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_reply_button", last_reply_button);
   g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_button", last_button);
 
 }
 
 static void
-remove_send_button_pidgin(PidginConversation *gtkconv)
+remove_juick_button_pidgin(PidginConversation *gtkconv)
 {
-  GtkWidget *send_button = NULL, *last_button = NULL;
+  GtkWidget *last_reply_button = NULL, *last_button = NULL;
 
-  send_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "send_button");
+  last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
   last_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_button");
 
-  if (send_button) {
-    gtk_widget_destroy(send_button);
+  if (last_reply_button) {
+    gtk_widget_destroy(last_reply_button);
     gtk_widget_destroy(last_button);
-    g_object_set_data(G_OBJECT(gtkconv->toolbar), "send_button", NULL);
+    g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_reply_button", NULL);
     g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_button", NULL);
   }
 }
@@ -177,12 +213,12 @@ remove_send_button_pidgin(PidginConversation *gtkconv)
 static void
 conversation_displayed_cb(PidginConversation *gtkconv)
 {
-  GtkWidget *send_button = NULL;
+  GtkWidget *last_reply_button = NULL;
 
-  send_button = g_object_get_data(G_OBJECT(gtkconv->lower_hbox),
-                                  "send_button");
-  if (send_button == NULL) {
-    create_send_button_pidgin(gtkconv);
+  last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar),
+				 "last_reply_button");
+  if (last_reply_button == NULL) {
+    create_juick_button_pidgin(gtkconv);
   }
 }
 
@@ -191,25 +227,29 @@ plugin_load(PurplePlugin *plugin)
 {
   GList *convs = purple_get_conversations();
   void *gtk_conv_handle = pidgin_conversations_get_handle();
+  void *conv_handle = purple_conversations_get_handle();
 
+  /* for markup */
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,
-                        PURPLE_CALLBACK(displaying_msg), NULL);
+                        PURPLE_CALLBACK(markup_msg), NULL);
 
+  /* for make button */
   purple_signal_connect(gtk_conv_handle, "conversation-displayed", plugin,
                         PURPLE_CALLBACK(conversation_displayed_cb), NULL);
 
+  /* for mem last reply */
+  purple_signal_connect(conv_handle, "sending-im-msg", plugin,
+			PURPLE_CALLBACK(intercept_sent), NULL);
+
+  // XXX: purple_conversation_foreach (init_conversation); ?
   while (convs) {
-
     PurpleConversation *conv = (PurpleConversation *)convs->data;
-
     /* Setup Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
-      create_send_button_pidgin(PIDGIN_CONVERSATION(conv));
+      create_juick_button_pidgin(PIDGIN_CONVERSATION(conv));
     }
-
     convs = convs->next;
   }
-
   return TRUE;
 }
 
@@ -220,15 +260,12 @@ plugin_unload(PurplePlugin *plugin)
 
   while (convs) {
     PurpleConversation *conv = (PurpleConversation *)convs->data;
-
     /* Remove Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
-      remove_send_button_pidgin(PIDGIN_CONVERSATION(conv));
+      remove_juick_button_pidgin(PIDGIN_CONVERSATION(conv));
     }
-
     convs = convs->next;
   }
-
   return TRUE;
 }
 

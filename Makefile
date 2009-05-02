@@ -5,3 +5,4 @@ all:
 	$(MAKE) -C $(PIDGIN_PLUGIN_PATH) juick.so
 	rm $(PIDGIN_PLUGIN_PATH)/juick.c
 	mv $(PIDGIN_PLUGIN_PATH)/juick.so .
+	strip juick.so
