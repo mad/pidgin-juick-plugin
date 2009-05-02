@@ -19,7 +19,7 @@ all:
 	-g -g -O2 -c juick.c -o tmpjuick.so.lo
 	sh libtool --silent --mode=link    gcc -g -g -O2 -o libtmpjuick.so.la -rpath \
 	/usr/lib/pidgin tmpjuick.so.lo -lutil -lpthread -lnsl -lresolv   -module -avoid-version
-	@rm -f tmpjuick.lo tmpjuick.o libtmpjuick.la libtmpjuick.so.la
+	@rm -f tmpjuick.* libtmpjuick.*
 	@cp .libs/libtmpjuick.so.so juick.so
 	@rm -f .libs/libtmpjuick*
 	strip juick.so

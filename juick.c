@@ -15,7 +15,7 @@ static const char *juick = "juick@juick.com";
 
 static gboolean
 displaying_msg(PurpleAccount *account, const char *who, char **displaying,
-	       PurpleConversation *conv, PurpleMessageFlags flags)
+               PurpleConversation *conv, PurpleMessageFlags flags)
 {
   char *t;
   char *startnew, *new;
@@ -29,68 +29,71 @@ displaying_msg(PurpleAccount *account, const char *who, char **displaying,
 
   /* FIXME: mb realloc ? */
 
-  new = (char *) malloc(strlen(t) * 10);
-  memset(new, 0, strlen(t) * 10);
+  new = (char *) malloc(strlen(t) * 20);
+  memset(new, 0, strlen(t) * 20);
   startnew = new;
 
   while(*t) {
     if(*t == '#') {
       start = t;
       do {
-	t++;
-      } while(isdigit(*t));
+        t++;
+      } while(isdigit(*t) || *t == '/');
       if(*t == 0)
-	end = --t;
+        end = --t;
       end = t;
-      if((end - start) > 1 && (end - start) < 20) {
-      	strcat(new, "<B>");
-      	strncat(new, start, end - start);
-      	strcat(new, "</B>");
-	i += 7 + end - start;
-	continue;
+      if((end - start) > 5 && (end - start) < 20) {
+        strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
+        strncat(new, start, end - start);
+        strcat(new, "+\">");
+        strncat(new, start, end - start);
+        strcat(new, "</A>");
+        i += 50 + (end - start)*2;
+        continue;
       } else {
-	t = start;
+        t = start;
       }
     } else if(*t == '@') {
       start = t;
       do {
-	t++;
+        t++;
       } while(*t != ' ' && *t != ':' && *t != 0);
       if(*t == 0)
-	end = --t;
+        end = --t;
       end = t;
       if((end - start) > 1 && (end - start) < 30) {
-      	strcat(new, "<FONT COLOR=\"BLUE\">");
-      	strncat(new, start, end - start);
-      	strcat(new, "</FONT>");
-	i += 26 + end - start;
-	continue;
+        strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
+        strncat(new, start, end - start);
+        strcat(new, "+\">");
+        strncat(new, start, end - start);
+        strcat(new, "</A>");
+        i += 50 + (end - start)*2;
+        continue;
       } else {
-	t = start;
+        t = start;
       }
     } else  if(*t == '*') {
       start = t;
       do {
-	t++;
+        t++;
       } while(*t != ' ' && *t != ':' && *t != 0);
       if(*t == 0)
-	end = --t;
+        end = --t;
       end = t;
       if((end - start) > 1  && (end - start) < 30) {
-      	strcat(new, "<FONT COLOR=\"#999999\"><I>");
-      	strncat(new, start, end - start);
-      	strcat(new, "</I></FONT>");
-	i += 36 + end - start;
-	continue;
+        strcat(new, "<FONT COLOR=\"#999999\"><I>");
+        strncat(new, start, end - start);
+        strcat(new, "</I></FONT>");
+        i += 36 + end - start;
+        continue;
       } else {
-	t = start;
+        t = start;
       }
     }
     new[i] = *t;
     i++;
     t++;
   }
-
   t = *displaying;
   new = startnew;
 
@@ -137,14 +140,14 @@ create_send_button_pidgin(PidginConversation *gtkconv)
   last_button = gtk_button_new_with_label(_("Last"));
 
   g_signal_connect(G_OBJECT(send_button), "clicked",
-		   G_CALLBACK(cmd_button_cb), gtkconv);
+                   G_CALLBACK(cmd_button_cb), gtkconv);
   g_signal_connect(G_OBJECT(last_button), "clicked",
-		   G_CALLBACK(cmd_button_cb), gtkconv);
+                   G_CALLBACK(cmd_button_cb), gtkconv);
 
   gtk_box_pack_start(GTK_BOX(gtkconv->toolbar), send_button,
-		     FALSE, FALSE, 0);
+                     FALSE, FALSE, 0);
   gtk_box_pack_start(GTK_BOX(gtkconv->toolbar), last_button,
-		     FALSE, FALSE, 0);
+                     FALSE, FALSE, 0);
 
   gtk_widget_show(send_button);
   gtk_widget_show(last_button);
@@ -176,7 +179,7 @@ conversation_displayed_cb(PidginConversation *gtkconv)
   GtkWidget *send_button = NULL;
 
   send_button = g_object_get_data(G_OBJECT(gtkconv->lower_hbox),
-				  "send_button");
+                                  "send_button");
   if (send_button == NULL) {
     create_send_button_pidgin(gtkconv);
   }
@@ -189,10 +192,10 @@ plugin_load(PurplePlugin *plugin)
   void *gtk_conv_handle = pidgin_conversations_get_handle();
 
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,
-			PURPLE_CALLBACK(displaying_msg), NULL);
+                        PURPLE_CALLBACK(displaying_msg), NULL);
 
   purple_signal_connect(gtk_conv_handle, "conversation-displayed", plugin,
-			PURPLE_CALLBACK(conversation_displayed_cb), NULL);
+                        PURPLE_CALLBACK(conversation_displayed_cb), NULL);
 
   while (convs) {
 
