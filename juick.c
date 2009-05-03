@@ -223,11 +223,65 @@ conversation_displayed_cb(PidginConversation *gtkconv)
 }
 
 static gboolean
+window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+  PidginConversation *gtkconv;
+  PurpleConversation *conv;
+  PurpleConnection *connection;
+  char tmp[80];
+
+  gtkconv  = (PidginConversation *)data;
+  conv = gtkconv->active_conv;
+  connection = purple_conversation_get_gc(conv);
+
+  if (event->state & GDK_CONTROL_MASK) {
+    // FIXME: mb locale ?
+    switch (event->keyval) {
+    case 's':
+    case 'S':
+      // XXX: tnis cyrilic 'Ы' 'ы'
+    case 1753:
+    case 1785:
+      purple_debug_misc("purple-juick", "Juick-plugin: \\C-s pressed\n");
+      serv_send_im(connection, juick, "#", PURPLE_MESSAGE_SEND);
+      break;
+    case 'r':
+    case 'R':
+      // XXX: this cyrrilic 'К' 'к'
+    case 1739:
+    case 1771:
+      purple_debug_misc("purple-juick", "Juick-plugin: \\C-r pressed\n");
+      if(id_last_reply) {
+	sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
+		id_last_reply);
+	system(tmp);
+      }
+      break;
+    }
+  }
+  return FALSE;
+}
+
+static gboolean
+add_key_handler_cb(PurpleConversation *conv)
+{
+  PidginConversation *gtkconv;
+
+  gtkconv = PIDGIN_CONVERSATION(conv);
+
+  /* Intercept keystrokes from the menu items */
+  g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
+		   G_CALLBACK(window_keypress_cb), gtkconv);
+  return FALSE;
+}
+
+static gboolean
 plugin_load(PurplePlugin *plugin)
 {
   GList *convs = purple_get_conversations();
-  void *gtk_conv_handle = pidgin_conversations_get_handle();
+  PidginConversation *gtk_conv_handle = pidgin_conversations_get_handle();
   void *conv_handle = purple_conversations_get_handle();
+  PidginWindow *win;
 
   /* for markup */
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,
@@ -241,9 +295,19 @@ plugin_load(PurplePlugin *plugin)
   purple_signal_connect(conv_handle, "sending-im-msg", plugin,
 			PURPLE_CALLBACK(intercept_sent), NULL);
 
+  purple_signal_connect(conv_handle, "conversation-created",
+			plugin, PURPLE_CALLBACK(add_key_handler_cb), NULL);
+
   // XXX: purple_conversation_foreach (init_conversation); ?
   while (convs) {
     PurpleConversation *conv = (PurpleConversation *)convs->data;
+    PidginConversation *gtkconv;
+
+    gtkconv = PIDGIN_CONVERSATION(conv);
+    /* Intercept keystrokes from the menu items */
+    g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
+		     G_CALLBACK(window_keypress_cb), gtkconv);
+
     /* Setup Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
       create_juick_button_pidgin(PIDGIN_CONVERSATION(conv));
