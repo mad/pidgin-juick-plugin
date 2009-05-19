@@ -1,5 +1,6 @@
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#include <string.h>
 #endif
 
 #include "internal.h"
@@ -17,34 +18,38 @@ int id_last_reply = 0;
 
 static gboolean
 markup_msg(PurpleAccount *account, const char *who, char **displaying,
-               PurpleConversation *conv, PurpleMessageFlags flags)
+	   PurpleConversation *conv, PurpleMessageFlags flags)
 {
-  char *t;
+  char *t, *tmp;
   char *startnew, *new;
   char *start, *end;
-  char prev = 0;
-  char firsttag = 0;
   int i = 0;
 
   if(!strstr(who, juick))
     return FALSE;
 
-  t = *displaying;
-
-  /* FIXME: mb realloc ? */
+  tmp = purple_markup_strip_html(*displaying);
+  t = purple_markup_linkify(tmp);
+  g_free(tmp);
 
   new = (char *) malloc(strlen(t) * 20);
   memset(new, 0, strlen(t) * 20);
   startnew = new;
 
+  // XXX: use regexp ?
   while(*t) {
-    if(*t == '#') {
+    // mark #ID
+    if(*t == '#'
+       && (*(t - 1) == ' ' || *(t - 1) == '\n' || i == 0)) {
       start = t;
       do {
         t++;
       } while(isdigit(*t) || *t == '/');
       end = t;
-      if((end - start) > 5 && (end - start) < 20) {
+      // i dont know max len
+      if((end - start) > 1
+	 && (end - start) < 20
+	 && (*t == ' ' || *t == '\n' || *t == 0 )) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
@@ -55,18 +60,17 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       } else {
         t = start;
       }
-      /* mb mail? */
-    } else if(*t == '@' && !isalpha(prev) && !isdigit(prev)) {
+      // Mark @username
+    } else if(*t == '@'
+	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
       start = t;
       do {
         t++;
-	// XXX: mb @juick@juick.com
-      } while(isalpha(*t) || isdigit(*t) || *t == '-' || *t == '@');
-      // XXX: make tag only first *abcd
-      if(*t == ':')
-	firsttag = 0;
+	// XXX: @user@domain.com or ONLY @username ?
+      } while(isalpha(*t) || isdigit(*t) || *t == '-');
       end = t;
-      if((end - start) > 1 && (end - start) < 17) {
+      if((end - start) > 1
+	 && (end - start) < 17) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
@@ -77,25 +81,122 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       } else {
         t = start;
       }
-    } else  if(*t == '*' && !firsttag && (prev == '\n' || prev == '>')) {
+      // Mark *tag
+      // XXX: mark ONLY first tag in msg
+    } else if(*t == '*'
+	      && *(t - 1) == '\n'
+	      && (*(t - 2) == ':' || (*(t - 2) == '\n'
+				      && *(t - 3) == ')'))) {
       start = t;
       do {
         t++;
-      } while(*t != ' ' && *t != ':' && *t != 0 && *t != '\n');
+      } while(*t != ' '
+	      && *t != '\n'
+	      && *t != 0);
       end = t;
-      if((end - start) > 1  && (end - start) < 30) {
+      // i dont know max len
+      if((end - start) > 1
+	 && (end - start) < 40) {
         strcat(new, "<FONT COLOR=\"#999999\"><I>");
         strncat(new, start, end - start);
         strcat(new, "</I></FONT>");
         i += 36 + end - start;
-	firsttag = 1;
+        continue;
+      } else {
+        t = start;
+      }
+      // Mark *bold*
+    } else if(*t == '*'
+	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+      start = t;
+      do {
+        t++;
+      } while(*t != ' '
+	      && *t != '\n'
+	      && *t != '*'
+	      && *t != 0);
+      if(*t != '*') {
+	end = start;
+      } else {
+	end = t;
+      }
+      if((end - start) > 1
+	 && (end - start) < 40
+	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+	// skip *
+	start++;
+        strcat(new, "<B>");
+        strncat(new, start, end - start);
+        strcat(new, "</B>");
+        i += 7 + end - start;
+	// skip *
+	t++;
+        continue;
+      } else {
+        t = start;
+      }
+      // Mark /italic/
+    } else if(*t == '/'
+	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+      start = t;
+      do {
+        t++;
+      } while(*t != ' '
+	      && *t != '\n'
+	      && *t != '/'
+	      && *t != 0);
+      if(*t != '/') {
+	end = start;
+      } else {
+	end = t;
+      }
+      if((end - start) > 1
+	 && (end - start) < 40
+	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+	// skip /
+	start++;
+        strcat(new, "<I>");
+        strncat(new, start, end - start);
+        strcat(new, "</I>");
+        i += 7 + end - start;
+	// skip /
+	t++;
+        continue;
+      } else {
+        t = start;
+      }
+      // Mark _underline_
+    } else if(*t == '_'
+	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+      start = t;
+      do {
+        t++;
+      } while(*t != ' '
+	      && *t != '\n'
+	      && *t != '_'
+	      && *t != 0);
+      if(*t != '_') {
+	end = start;
+      } else {
+	end = t;
+      }
+      if((end - start) > 1
+	 && (end - start) < 40
+	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+	// skip _
+	start++;
+        strcat(new, "<U>");
+        strncat(new, start, end - start);
+        strcat(new, "</U>");
+        i += 7 + end - start;
+	// skip _
+	t++;
         continue;
       } else {
         t = start;
       }
     }
     new[i] = *t;
-    prev = *t;
     i++;
     t++;
   }
@@ -114,10 +215,10 @@ intercept_sent(PurpleAccount *account, const char *who, char **message, void* pD
 {
   char *msg;
 
-  if (message == NULL || *message == NULL || **message == '\0')
+  if(!strstr(who, juick))
     return FALSE;
 
-  if(!strstr(who, juick))
+  if (message == NULL || *message == NULL || **message == '\0')
     return FALSE;
 
   msg = *message;
@@ -166,6 +267,14 @@ static void
 create_juick_button_pidgin(PidginConversation *gtkconv)
 {
   GtkWidget *last_reply_button, *last_button;
+  PurpleConversation *conv;
+  const char *who;
+
+  conv = gtkconv->active_conv;
+  who = purple_conversation_get_name(conv);
+
+  if(!strstr(who, juick))
+    return;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
   last_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_button");
@@ -200,7 +309,6 @@ remove_juick_button_pidgin(PidginConversation *gtkconv)
   GtkWidget *last_reply_button = NULL, *last_button = NULL;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
-  last_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_button");
 
   if (last_reply_button) {
     gtk_widget_destroy(last_reply_button);
@@ -216,7 +324,7 @@ conversation_displayed_cb(PidginConversation *gtkconv)
   GtkWidget *last_reply_button = NULL;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar),
-				 "last_reply_button");
+					"last_reply_button");
   if (last_reply_button == NULL) {
     create_juick_button_pidgin(gtkconv);
   }
@@ -235,11 +343,11 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
   connection = purple_conversation_get_gc(conv);
 
   if (event->state & GDK_CONTROL_MASK) {
-    // FIXME: mb locale ?
+    // XXX: locale ?
     switch (event->keyval) {
     case 's':
     case 'S':
-      // XXX: tnis cyrilic 'Ы' 'ы'
+      // this cyrilic 'Ы' 'ы'
     case 1753:
     case 1785:
       purple_debug_misc("purple-juick", "Juick-plugin: \\C-s pressed\n");
@@ -247,7 +355,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
       break;
     case 'r':
     case 'R':
-      // XXX: this cyrrilic 'К' 'к'
+      // this cyrrilic 'К' 'к'
     case 1739:
     case 1771:
       purple_debug_misc("purple-juick", "Juick-plugin: \\C-r pressed\n");
@@ -281,7 +389,6 @@ plugin_load(PurplePlugin *plugin)
   GList *convs = purple_get_conversations();
   PidginConversation *gtk_conv_handle = pidgin_conversations_get_handle();
   void *conv_handle = purple_conversations_get_handle();
-  PidginWindow *win;
 
   /* for markup */
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,

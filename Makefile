@@ -1,4 +1,4 @@
-PIDGIN_PLUGIN_PATH=/home/mad/pidgin-2.5.5/pidgin/plugins
+PIDGIN_PLUGIN_PATH=/home/mad/workspace/project/pidgin-dev/pidgin-2.5.5/pidgin/plugins/
 PLUGIN_NAME=juick
 
 all:
