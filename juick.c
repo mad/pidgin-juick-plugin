@@ -18,12 +18,12 @@ int id_last_reply = 0;
 
 static gboolean
 markup_msg(PurpleAccount *account, const char *who, char **displaying,
-	   PurpleConversation *conv, PurpleMessageFlags flags)
+           PurpleConversation *conv, PurpleMessageFlags flags)
 {
   char *t, *tmp;
   char *startnew, *new;
   char *start, *end;
-  int i = 0;
+  int i = 0, tag_num = 0;
 
   if(!strstr(who, juick))
     return FALSE;
@@ -48,8 +48,8 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       end = t;
       // i dont know max len
       if((end - start) > 1
-	 && (end - start) < 20
-	 && (*t == ' ' || *t == '\n' || *t == 0 )) {
+         && (end - start) < 20
+         && (*t == ' ' || *t == '\n' || *t == 0 )) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
@@ -62,15 +62,15 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       }
       // Mark @username
     } else if(*t == '@'
-	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+              && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
       start = t;
       do {
         t++;
-	// XXX: @user@domain.com or ONLY @username ?
+        // XXX: @user@domain.com or ONLY @username ?
       } while(isalpha(*t) || isdigit(*t) || *t == '-');
       end = t;
       if((end - start) > 1
-	 && (end - start) < 17) {
+         && (end - start) < 20) {
         strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
@@ -84,113 +84,128 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       // Mark *tag
       // XXX: mark ONLY first tag in msg
     } else if(*t == '*'
-	      && *(t - 1) == '\n'
-	      && (*(t - 2) == ':' || (*(t - 2) == '\n'
-				      && *(t - 3) == ')'))) {
+              && *(t - 1) == ' '
+              && *(t - 2) == ':') {
       start = t;
+      tag_num = 0;
       do {
-        t++;
-      } while(*t != ' '
-	      && *t != '\n'
-	      && *t != 0);
-      end = t;
-      // i dont know max len
-      if((end - start) > 1
-	 && (end - start) < 40) {
-        strcat(new, "<FONT COLOR=\"#999999\"><I>");
-        strncat(new, start, end - start);
-        strcat(new, "</I></FONT>");
-        i += 36 + end - start;
+        if(*(t + 1) == '*') {
+          new[i] = *t;
+          i++;
+          t++;
+          start = t;
+        } else if(*t != '*') {
+          break;
+        }
+        do {
+          t++;
+        } while(*t != ' '
+                && *t != '\n'
+                && *t != 0);
+        end = t;
+        // i dont know max len
+        if((end - start) > 1
+           && (end - start) < 40) {
+          strcat(new, "<FONT COLOR=\"#999999\"><I>");
+          strncat(new, start, end - start);
+          strcat(new, "</I></FONT>");
+          i += 36 + end - start;
+          tag_num++;
+        } else {
+          t = start;
+          break;
+        }
+      } while(*t != '\n'
+              && tag_num < 5);
+      if(t != start) {
         continue;
-      } else {
-        t = start;
       }
       // Mark *bold*
     } else if(*t == '*'
-	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+              && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
       start = t;
       do {
         t++;
       } while(*t != ' '
-	      && *t != '\n'
-	      && *t != '*'
-	      && *t != 0);
+              && *t != '\n'
+              && *t != '*'
+              && *t != 0);
       if(*t != '*') {
-	end = start;
+        end = start;
       } else {
-	end = t;
+        end = t;
       }
       if((end - start) > 1
-	 && (end - start) < 40
-	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
-	// skip *
-	start++;
+         && (end - start) < 40
+         && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+        // skip *
+        start++;
         strcat(new, "<B>");
         strncat(new, start, end - start);
         strcat(new, "</B>");
         i += 7 + end - start;
-	// skip *
-	t++;
+        // skip *
+        t++;
         continue;
       } else {
         t = start;
       }
       // Mark /italic/
     } else if(*t == '/'
-	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+              && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
       start = t;
       do {
         t++;
       } while(*t != ' '
-	      && *t != '\n'
-	      && *t != '/'
-	      && *t != 0);
+              && *t != '\n'
+              && *t != '/'
+              && *t != 0);
       if(*t != '/') {
-	end = start;
+        end = start;
       } else {
-	end = t;
+        end = t;
       }
       if((end - start) > 1
-	 && (end - start) < 40
-	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
-	// skip /
-	start++;
+         && (end - start) < 40
+         && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+        // skip /
+        start++;
         strcat(new, "<I>");
         strncat(new, start, end - start);
         strcat(new, "</I>");
         i += 7 + end - start;
-	// skip /
-	t++;
+        // skip /
+        t++;
         continue;
       } else {
         t = start;
       }
       // Mark _underline_
     } else if(*t == '_'
-	      && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
+              && (*(t - 1) == ' ' || *(t - 1) == '\n')) {
       start = t;
       do {
         t++;
       } while(*t != ' '
-	      && *t != '\n'
-	      && *t != '_'
-	      && *t != 0);
+              && *t != '\n'
+              && *t != '_'
+              && *t != 0);
       if(*t != '_') {
-	end = start;
+        end = start;
       } else {
-	end = t;
+        end = t;
       }
       if((end - start) > 1
-	 && (end - start) < 40
-	 && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
-	// skip _
-	start++;
+         && (end - start) < 40
+         && (*(t + 1) == ' ' || *(t + 1) == '\n' || *(t + 1) == 0)) {
+        // skip _
+        start++;
         strcat(new, "<U>");
         strncat(new, start, end - start);
         strcat(new, "</U>");
         i += 7 + end - start;
-	// skip _
-	t++;
+        // skip _
+        t++;
         continue;
       } else {
         t = start;
@@ -229,7 +244,7 @@ intercept_sent(PurpleAccount *account, const char *who, char **message, void* pD
     msg++;
     id_last_reply = atoi(msg);
       purple_debug_misc("purple-juick", "Juick-plugin: mem last reply %d\n",
-			id_last_reply);
+                        id_last_reply);
   }
   return TRUE;
 }
@@ -252,10 +267,10 @@ cmd_button_cb(GtkButton *button, PidginConversation *gtkconv)
 
   if(strcmp(label, "last reply") == 0) {
     purple_debug_misc("purple-juick", "Juick-plugin: last reply button %d\n",
-		      id_last_reply);
+                      id_last_reply);
     if(id_last_reply) {
       sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
-	      id_last_reply);
+              id_last_reply);
       system(tmp);
     }
   } else if(strcmp(label, "last msg") == 0) {
@@ -324,7 +339,7 @@ conversation_displayed_cb(PidginConversation *gtkconv)
   GtkWidget *last_reply_button = NULL;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar),
-					"last_reply_button");
+                                        "last_reply_button");
   if (last_reply_button == NULL) {
     create_juick_button_pidgin(gtkconv);
   }
@@ -360,9 +375,9 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
     case 1771:
       purple_debug_misc("purple-juick", "Juick-plugin: \\C-r pressed\n");
       if(id_last_reply) {
-	sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
-		id_last_reply);
-	system(tmp);
+        sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
+                id_last_reply);
+        system(tmp);
       }
       break;
     }
@@ -379,7 +394,7 @@ add_key_handler_cb(PurpleConversation *conv)
 
   /* Intercept keystrokes from the menu items */
   g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
-		   G_CALLBACK(window_keypress_cb), gtkconv);
+                   G_CALLBACK(window_keypress_cb), gtkconv);
   return FALSE;
 }
 
@@ -400,10 +415,10 @@ plugin_load(PurplePlugin *plugin)
 
   /* for mem last reply */
   purple_signal_connect(conv_handle, "sending-im-msg", plugin,
-			PURPLE_CALLBACK(intercept_sent), NULL);
+                        PURPLE_CALLBACK(intercept_sent), NULL);
 
   purple_signal_connect(conv_handle, "conversation-created",
-			plugin, PURPLE_CALLBACK(add_key_handler_cb), NULL);
+                        plugin, PURPLE_CALLBACK(add_key_handler_cb), NULL);
 
   // XXX: purple_conversation_foreach (init_conversation); ?
   while (convs) {
@@ -413,7 +428,7 @@ plugin_load(PurplePlugin *plugin)
     gtkconv = PIDGIN_CONVERSATION(conv);
     /* Intercept keystrokes from the menu items */
     g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
-		     G_CALLBACK(window_keypress_cb), gtkconv);
+                     G_CALLBACK(window_keypress_cb), gtkconv);
 
     /* Setup Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
