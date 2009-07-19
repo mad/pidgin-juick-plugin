@@ -1,3 +1,20 @@
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 3, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; see the file COPYING.  If not, write to
+ * the Free Software Foundation, Inc., 51 Franklin Street, Fifth
+ * Floor, Boston, MA 02110-1301, USA.
+ */
+
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #include <string.h>
@@ -10,11 +27,20 @@
 
 #include "pidgin.h"
 
-#include "gtkconv.h"
+#include <debug.h>
+#include <core.h>
+#include <conversation.h>
+#include <gtkconv.h>
+#include <gtkprefs.h>
+#include <gtkutils.h>
 #include "gtkplugin.h"
 
-static const char *juick = "juick@juick.com";
+#define DBGID "juick"
+
+static const char *juick_jid = "juick@juick.com";
 int id_last_reply = 0;
+
+char *global_account_id = NULL;
 
 static gboolean
 markup_msg(PurpleAccount *account, const char *who, char **displaying,
@@ -25,9 +51,10 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   char *start, *end;
   int i = 0, tag_num = 0;
 
-  if(!strstr(who, juick))
+  if(!strstr(who, juick_jid))
     return FALSE;
 
+  global_account_id = (const gchar *)purple_account_get_username(conv->account);
   tmp = purple_markup_strip_html(*displaying);
   t = purple_markup_linkify(tmp);
   g_free(tmp);
@@ -36,7 +63,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   memset(new, 0, strlen(t) * 20);
   startnew = new;
 
-  // XXX: use regexp ?
+  // XXX: use regex ?
   while(*t) {
     // mark #ID
     if(*t == '#'
@@ -50,12 +77,12 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       if((end - start) > 1
          && (end - start) < 20
          && (*t == ' ' || *t == '\n' || *t == 0 )) {
-        strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
+        strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
         strcat(new, "+\">");
         strncat(new, start, end - start);
         strcat(new, "</A>");
-        i += 50 + (end - start)*2;
+        i += 25 + (end - start)*2;
         continue;
       } else {
         t = start;
@@ -71,12 +98,12 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       end = t;
       if((end - start) > 1
          && (end - start) < 20) {
-        strcat(new, "<A HREF=\"xmpp:juick@juick.com?message;body=");
+        strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
-        strcat(new, "+\">");
+        strcat(new, "\">");
         strncat(new, start, end - start);
         strcat(new, "</A>");
-        i += 50 + (end - start)*2;
+        i += 24 + (end - start)*2;
         continue;
       } else {
         t = start;
@@ -225,12 +252,39 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   return FALSE;
 }
 
+static gboolean juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
+{
+  PurpleAccount *account = NULL;
+  PurpleConversation *conv = NULL;
+  PidginConversation *gtkconv;
+  gchar *body = NULL;
+
+  purple_debug_info(DBGID, "juick_uri_handler\n");
+
+  account = purple_accounts_find(global_account_id, "prpl-jabber");
+
+  purple_debug_info(DBGID, "account %d\n", account);
+
+  if (g_ascii_strcasecmp(proto, "j") == 0) {
+    body = g_hash_table_lookup(params, "body");
+    if (body && account) {
+      conv = purple_find_conversation_with_account
+	(PURPLE_CONV_TYPE_ANY, "juick@juick.com", account);
+      gtkconv = PIDGIN_CONVERSATION(conv);
+      gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+      gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 static gboolean
 intercept_sent(PurpleAccount *account, const char *who, char **message, void* pData)
 {
   char *msg;
 
-  if(!strstr(who, juick))
+  if(!strstr(who, juick_jid))
     return FALSE;
 
   if (message == NULL || *message == NULL || **message == '\0')
@@ -274,7 +328,7 @@ cmd_button_cb(GtkButton *button, PidginConversation *gtkconv)
       system(tmp);
     }
   } else if(strcmp(label, "last msg") == 0) {
-    serv_send_im(connection, juick, "#", PURPLE_MESSAGE_SEND);
+    serv_send_im(connection, juick_jid, "#", PURPLE_MESSAGE_SEND);
   }
 }
 
@@ -288,7 +342,7 @@ create_juick_button_pidgin(PidginConversation *gtkconv)
   conv = gtkconv->active_conv;
   who = purple_conversation_get_name(conv);
 
-  if(!strstr(who, juick))
+  if(!strstr(who, juick_jid))
     return;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
@@ -366,7 +420,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
     case 1753:
     case 1785:
       purple_debug_misc("purple-juick", "Juick-plugin: \\C-s pressed\n");
-      serv_send_im(connection, juick, "#", PURPLE_MESSAGE_SEND);
+      serv_send_im(connection, juick_jid, "#", PURPLE_MESSAGE_SEND);
       break;
     case 'r':
     case 'R':
@@ -396,6 +450,20 @@ add_key_handler_cb(PurpleConversation *conv)
   g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
                    G_CALLBACK(window_keypress_cb), gtkconv);
   return FALSE;
+}
+
+static PurpleNotifyUiOps juick_ops;
+static void *(*saved_notify_uri)(const char *uri);
+
+static void * juick_notify_uri(const char *uri) {
+  void * retval = NULL;
+
+  if(strncmp(uri, "j:", 2) == 0) {
+    purple_got_protocol_handler_uri(uri);
+  } else {
+    retval = saved_notify_uri(uri);
+  }
+  return retval;
 }
 
 static gboolean
@@ -436,6 +504,12 @@ plugin_load(PurplePlugin *plugin)
     }
     convs = convs->next;
   }
+  memcpy(&juick_ops, purple_notify_get_ui_ops(), sizeof(PurpleNotifyUiOps));
+  saved_notify_uri = juick_ops.notify_uri;
+  juick_ops.notify_uri = juick_notify_uri;
+  purple_notify_set_ui_ops(&juick_ops);
+  purple_signal_connect(purple_get_core(), "uri-handler", plugin, PURPLE_CALLBACK(juick_uri_handler), NULL);
+
   return TRUE;
 }
 
@@ -458,29 +532,28 @@ plugin_unload(PurplePlugin *plugin)
 static PurplePluginInfo info =
   {
     PURPLE_PLUGIN_MAGIC,
-    PURPLE_MAJOR_VERSION,                           /**< major version */
-    PURPLE_MINOR_VERSION,                           /**< minor version */
-    PURPLE_PLUGIN_STANDARD,                         /**< type */
-    PIDGIN_PLUGIN_TYPE,                             /**< ui_requirement */
-    0,                                              /**< flags */
-    NULL,                                           /**< dependencies */
-    PURPLE_PRIORITY_DEFAULT,                        /**< priority */
+    PURPLE_MAJOR_VERSION,                               /**< major version */
+    PURPLE_MINOR_VERSION,                               /**< minor version */
+    PURPLE_PLUGIN_STANDARD,                             /**< type */
+    PIDGIN_PLUGIN_TYPE,                                 /**< ui_requirement */
+    0,                                                  /**< flags */
+    NULL,                                               /**< dependencies */
+    PURPLE_PRIORITY_DEFAULT,                            /**< priority */
 
-    "gtkjuick",                                     /**< id */
-    N_("juick"),                                    /**< name */
-    N_("0.1"),                                      /**< version */
-    N_("Adds some color and button to juick@juick.com."),         /**< summary */
-    N_("Adds some color and button to juick@juick.com."),         /**< description */
-    "owner.mad.epa@gmail.com",              /**< author */
-    PURPLE_WEBSITE,                                 /**< homepage */
-    plugin_load,                                    /**< load */
-    plugin_unload,                                  /**< unload */
-    NULL,                                           /**< destroy */
-    NULL,                                           /**< ui_info */
-    NULL,                                           /**< extra_info */
-    NULL,                                           /**< prefs_info */
-    NULL,                                           /**< actions */
-
+    "gtkjuick",                                         /**< id */
+    N_("juick"),                                        /**< name */
+    N_("0.1"),                                          /**< version */
+    N_("Adds some color and button for juick bot."),    /**< summary */
+    N_("Adds some color and button for juick bot."),    /**< description */
+    "owner.mad.epa@gmail.com",                          /**< author */
+    PURPLE_WEBSITE,                                     /**< homepage */
+    plugin_load,                                        /**< load */
+    plugin_unload,                                      /**< unload */
+    NULL,                                               /**< destroy */
+    NULL,                                               /**< ui_info        */
+    NULL,                                               /**< extra_info */
+    NULL,                                               /**< prefs_info */
+    NULL,                                               /**< actions */
     /* padding */
     NULL,
     NULL,
