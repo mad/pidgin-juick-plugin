@@ -17,15 +17,9 @@ cd pidgin-juick-plugin</code></pre>
 
 h2. Компиляция плагина:
 
-Для компиляции потребуется:
+Для того что бы скомпилировать плагин, наберите (в каталоге с плагином):
 
-# сорцы "пиджина":http://pidgin.im/download/source/
-# указать в Makefile (находится в папке с плагином) путь к папке pidgin-X.Y.Z/pidgin/plugins
-<br><pre> <code>PIDGIN_PLUGIN_PATH=/home/mad/pidgin-2.5.5/pidgin/plugins</code> </pre>
-# в корневой папке с исходниками набрать
-<br><pre><code>./configure</code></pre>
-# в папке с плагином набрать
-<br><pre><code>make juick.so</code></pre>
+<br><pre><code>make</code></pre>
 
 если всё пройдёт удачно, то в текущем каталоге появится файл juick.so
 

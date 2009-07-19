@@ -20,26 +20,29 @@
 #include <string.h>
 #endif
 
-#include "internal.h"
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <time.h>
+#include <glib.h>
+#include <glib/gi18n.h>
 
-#include "version.h"
-#include "debug.h"
-
-#include "pidgin.h"
-
-#include <debug.h>
+#include <account.h>
 #include <core.h>
-#include <conversation.h>
+#include <debug.h>
 #include <gtkconv.h>
-#include <gtkprefs.h>
+#include <util.h>
+#include <version.h>
+#include <gtkplugin.h>
+#include <gtkimhtml.h>
 #include <gtkutils.h>
-#include "gtkplugin.h"
+#include <gtknotify.h>
+#include <conversation.h>
 
 #define DBGID "juick"
 
 static const char *juick_jid = "juick@juick.com";
 int id_last_reply = 0;
-
 char *global_account_id = NULL;
 
 static gboolean
@@ -54,7 +57,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   if(!strstr(who, juick_jid))
     return FALSE;
 
-  global_account_id = (const gchar *)purple_account_get_username(conv->account);
+  global_account_id = purple_account_get_username(conv->account);
   tmp = purple_markup_strip_html(*displaying);
   t = purple_markup_linkify(tmp);
   g_free(tmp);
@@ -269,7 +272,7 @@ static gboolean juick_uri_handler(const char *proto, const char *cmd, GHashTable
     body = g_hash_table_lookup(params, "body");
     if (body && account) {
       conv = purple_find_conversation_with_account
-	(PURPLE_CONV_TYPE_ANY, "juick@juick.com", account);
+        (PURPLE_CONV_TYPE_ANY, "juick@juick.com", account);
       gtkconv = PIDGIN_CONVERSATION(conv);
       gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
       gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
@@ -541,12 +544,12 @@ static PurplePluginInfo info =
     PURPLE_PRIORITY_DEFAULT,                            /**< priority */
 
     "gtkjuick",                                         /**< id */
-    N_("juick"),                                        /**< name */
-    N_("0.1"),                                          /**< version */
-    N_("Adds some color and button for juick bot."),    /**< summary */
-    N_("Adds some color and button for juick bot."),    /**< description */
+    "juick",                                            /**< name */
+    "0.1",                                              /**< version */
+    "Adds some color and button for juick bot.",        /**< summary */
+    "Adds some color and button for juick bot.",        /**< description */
     "owner.mad.epa@gmail.com",                          /**< author */
-    PURPLE_WEBSITE,                                     /**< homepage */
+    "http://github.com/mad/pidgin-juick-plugin",        /**< homepage */
     plugin_load,                                        /**< load */
     plugin_unload,                                      /**< unload */
     NULL,                                               /**< destroy */
@@ -554,7 +557,7 @@ static PurplePluginInfo info =
     NULL,                                               /**< extra_info */
     NULL,                                               /**< prefs_info */
     NULL,                                               /**< actions */
-    /* padding */
+                                                        /* padding */
     NULL,
     NULL,
     NULL,

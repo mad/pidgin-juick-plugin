@@ -1,9 +1,8 @@
-PIDGIN_PLUGIN_PATH=/home/mad/workspace/project/pidgin-dev/pidgin-2.5.5/pidgin/plugins/
-PLUGIN_NAME=juick
+CFLAGS = -O2 -pipe -shared -fPIC -DPIC
+PURPLE_CFLAGS = $(CFLAGS) -DPURPLE_PLUGINS
+PURPLE_CFLAGS += $(shell pkg-config --cflags purple)
+PURPLE_CFLAGS += $(shell pkg-config --cflags pidgin)
 
 all:
-	cp $(PLUGIN_NAME).c $(PIDGIN_PLUGIN_PATH)
-	$(MAKE) -C $(PIDGIN_PLUGIN_PATH) $(PLUGIN_NAME).so
-	rm $(PIDGIN_PLUGIN_PATH)/$(PLUGIN_NAME).c
-	mv $(PIDGIN_PLUGIN_PATH)/$(PLUGIN_NAME).so .
-	strip $(PLUGIN_NAME).so
+	gcc -Wall ${PURPLE_CFLAGS} juick.c -o juick.so
+	strip juick.so
