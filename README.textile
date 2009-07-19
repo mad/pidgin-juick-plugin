@@ -1,0 +1,38 @@
+!http://img4.imageshack.us/img4/9979/newrxp.th.png!:http://img4.imageshack.us/img4/9979/newrxp.png
+
+h2. Установка:
+
+# Получить плагин можно двумя способами
+## Скачать архив
+<br><pre><code>wget http://github.com/mad/pidgin-juick-plugin/tarball/master
+tar xzf mad-pidgin-juick-plugin-*.tgz
+cd mad-pidgin-juick-plugin*</code></pre>
+## Или создать локальный репозиторий
+<br><pre><code>git clone git://github.com/mad/pidgin-juick-plugin.git
+cd pidgin-juick-plugin</code></pre>
+# скопировать файл juick.so в ~/.purple/plugins
+<br><pre><code>cp juick.so ~/.purple/plugins/</code></pre>
+
+Открыть окно пиджина, нажать Ctrl+U и поставить галочку напротив Juick 0.1.
+
+h2. Компиляция плагина:
+
+Для компиляции потребуется:
+
+# сорцы "пиджина":http://pidgin.im/download/source/
+# указать в Makefile (находится в папке с плагином) путь к папке pidgin-X.Y.Z/pidgin/plugins
+<br><pre> <code>PIDGIN_PLUGIN_PATH=/home/mad/pidgin-2.5.5/pidgin/plugins</code> </pre>
+# в корневой папке с исходниками набрать
+<br><pre><code>./configure</code></pre>
+# в папке с плагином набрать
+<br><pre><code>make juick.so</code></pre>
+
+если всё пройдёт удачно, то в текущем каталоге появится файл juick.so
+
+h2.  Примечание:
+
+\C-r - номер последнего ответа
+
+\C-s - последние 10 сообщений
+
+h3. <I> плагин сырой, возможны падения пиджина. </I>
