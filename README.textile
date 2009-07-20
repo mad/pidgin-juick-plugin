@@ -2,7 +2,7 @@
 
 h2. Установка:
 
-# Получить плагин можно двумя способами
+# Получить плагин можно одним из способов:
 ## Скачать архив
 <br><pre><code>wget http://github.com/mad/pidgin-juick-plugin/tarball/master
 tar xzf mad-pidgin-juick-plugin-*.tgz
@@ -10,6 +10,11 @@ cd mad-pidgin-juick-plugin*</code></pre>
 ## Или создать локальный репозиторий
 <br><pre><code>git clone git://github.com/mad/pidgin-juick-plugin.git
 cd pidgin-juick-plugin</code></pre>
+## Так же плагин доступен пользователям gentoo <br>
+Через "ebuild":http://github.com/bobrik/callisto/blob/4dc73a3b9c435d5233a7b546cf7a94d03f0f04cb/x11-plugins/pidgin-juick-plugin/pidgin-juick-plugin-9999.ebuild
+<br>
+или через оверлей callisto, подключить оверлей можно так:
+<pre><code>layman -o http://bobrik.name/gentoo/overlays.xml -f -a callisto</code></pre>
 # скопировать файл juick.so в ~/.purple/plugins
 <br><pre><code>cp juick.so ~/.purple/plugins/</code></pre>
 
