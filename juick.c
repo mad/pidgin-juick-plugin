@@ -569,4 +569,4 @@ init_plugin(PurplePlugin *plugin)
 {
 }
 
-PURPLE_INIT_PLUGIN(sendbutton, init_plugin, info)
+PURPLE_INIT_PLUGIN(juick, init_plugin, info)
