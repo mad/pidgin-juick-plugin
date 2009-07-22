@@ -1,6 +1,7 @@
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 
-[![www](http://img4.imageshack.us/img4/9979/newrxp.th.png)](http://img4.imageshack.us/img4/9979/newrxp.png)
+[![www](http://img129.imageshack.us/img129/203/pidginavatar.th.png)](http://img129.imageshack.us/img129/203/pidginavatar.png)
+[![www](http://img263.imageshack.us/img263/3552/pidginwin.th.png)](http://img263.imageshack.us/img263/3552/pidginwin.png)
 
 # Установка:
 
@@ -12,6 +13,9 @@
         tar xzf mad-pidgin-juick-plugin-*.tgz
         cd mad-pidgin-juick-plugin*
         cp juick.so ~/.purple/plugins/
+
+	 для пользователей Windows, скопируйте `juick.dll` в папку
+	`%APPDATA%\.purple\plugins\`
 
 - Создать локальный репозиторий:
 
@@ -27,7 +31,7 @@
 
         layman -o http://bobrik.name/gentoo/overlays.xml -f -a callisto
 
-ля активации плагина откройте окно пиджина, и нажмите Ctrl+U, появится окно
+Для активации плагина откройте окно пиджина, и нажмите Ctrl+U, появится окно
 со списком плагинов - напротив Juick 0.1 поставьте галочку.
 
 # Компиляция плагина:
@@ -39,6 +43,10 @@
 если всё пройдёт удачно, то в текущем каталоге появится файл juick.so
 
 #  Примечание:
+
+Плагин поддерживает отображение аватарок - по умолчанию отключены (в
+настройках плагина) из за существенной паузы при получения сообщений с не
+загруженными аватарками.
 
 `\C-r` - номер (id) последнего ответа
 
