@@ -27,6 +27,8 @@
 #include <glib.h>
 #include <glib/gi18n.h>
 
+#include <imgstore.h>
+
 #include <account.h>
 #include <core.h>
 #include <debug.h>
@@ -41,30 +43,57 @@
 
 #define DBGID "juick"
 
+struct _PurpleStoredImage
+{
+	int id;
+	guint8 refcount;
+	size_t size;		/**< The image data's size.	*/
+	char *filename;		/**< The filename (for the UI)	*/
+	gpointer data;		/**< The image data.		*/
+};
+
+struct _JuickAvatar
+{
+  int id;
+  char *name;
+};
+
+typedef struct _JuickAvatar JuickAvatar;
+
 static const char *juick_jid = "juick@juick.com";
 int id_last_reply = 0;
 char *global_account_id = NULL;
+
+static GHashTable *avatar_store;
+
+static int juick_smile_add_fake(char *);
+static char * juick_download_avatar(const char *);
 
 static gboolean
 markup_msg(PurpleAccount *account, const char *who, char **displaying,
            PurpleConversation *conv, PurpleMessageFlags flags)
 {
-  char *t, *tmp;
+  char *t;
   char *startnew, *new;
   char *start, *end;
-  int i = 0, tag_num = 0;
+  char imgbuf[64];
+  int  *ptrid, i = 0, tag_num = 0;
+  char maybe_path[128];
+  char *maybe_url;
+  JuickAvatar *javatar;
 
   if(!strstr(who, juick_jid))
     return FALSE;
 
   global_account_id = purple_account_get_username(conv->account);
-  tmp = purple_markup_strip_html(*displaying);
-  t = purple_markup_linkify(tmp);
-  g_free(tmp);
+  t = purple_markup_strip_html(*displaying);
+  //  t = purple_markup_linkify(tmp);
+  //  g_free(tmp);
 
   new = (char *) malloc(strlen(t) * 20);
   memset(new, 0, strlen(t) * 20);
   startnew = new;
+  purple_debug_info("juick", "starting markup message\n");
 
   // XXX: use regex ?
   while(*t) {
@@ -101,6 +130,32 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       end = t;
       if((end - start) > 1
          && (end - start) < 20) {
+	// display avatar only by owner message
+	if (*t == ':') {
+	  javatar = g_new(JuickAvatar, 1);
+	  javatar->name = (char *) malloc(20);
+	  strncpy(javatar->name, start + 1, end - start - 1);
+	  javatar->name[end - start - 1] = 0;
+	  purple_debug_info("juick", "starting download avatar for %s\n",
+			    javatar->name);
+	  ptrid = g_hash_table_lookup(avatar_store, javatar->name);
+	  if (!ptrid) {
+	    maybe_url = juick_download_avatar(javatar->name);
+	    if (maybe_url) {
+	      sprintf(maybe_path, "/tmp/pidgin-juick/%s", maybe_url);
+	      purple_debug_info("juick", "Path to image %s\n", maybe_path);
+	      javatar->id = juick_smile_add_fake(maybe_path);
+	      g_hash_table_insert(avatar_store, javatar->name, javatar);
+	      free(maybe_url);
+	    }
+	  } else {
+	    javatar = ptrid;
+	  }
+	  g_snprintf(imgbuf, sizeof(imgbuf), "<img id=\"%d\"> ", javatar->id);
+	  purple_debug_info("juick", "add avatar %s\n", imgbuf);
+	  strcat(new, imgbuf);
+	  i += strlen(imgbuf);
+	}
         strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
         strcat(new, "\">");
@@ -245,6 +300,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
     i++;
     t++;
   }
+
   t = *displaying;
   new = startnew;
 
@@ -253,6 +309,67 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   g_free(t);
 
   return FALSE;
+}
+
+static char *
+juick_download_avatar(const char *uname)
+{
+  FILE *pp;
+  char *cmd = (char *) malloc(1024);
+  char *link = (char *) malloc(64);;
+
+  if (!uname)
+    return -1;
+
+  memset(link, 0, sizeof(link));
+
+  // XXX: it`s so dirty!
+  sprintf(cmd,
+	  "wget -q -O - juick.com/%s/"
+	  "| grep -o -E \"[0-9]+\\.png\" | tr '\\n' '\\0'", uname);
+
+  pp = popen(cmd, "r");
+  if (pp == NULL) {
+    purple_debug_info("juick", "download_avatar popen error");
+    free(cmd);
+    return NULL;
+  } else {
+    fgets(link, 64, pp);
+    pclose(pp);
+  }
+
+  sprintf(cmd,
+	  "$([ ! -e /tmp/pidgin-juick/ ] && mkdir /tmp/pidgin-juick; "
+	  "cd /tmp/pidgin-juick && wget -q http://i.juick.com/as/%s)",
+	  link);
+
+
+  system(cmd);
+
+  free(cmd);
+  return link;
+}
+
+static int
+juick_smile_add_fake(char *filename)
+{
+  char *filedata;
+  size_t size;
+  int id;
+  GError *error = NULL;
+  PurpleStoredImage *img;
+
+  if (!g_file_get_contents(filename, &filedata, &size, &error)) {
+    purple_debug_info("juick", "g_file_get error\n");
+    g_error_free(error);
+
+    return 0;
+  }
+
+  id = purple_imgstore_add_with_id(filedata, size, filename);
+  img = purple_imgstore_find_by_id(id);
+
+  return id;
 }
 
 static gboolean juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
@@ -475,6 +592,8 @@ plugin_load(PurplePlugin *plugin)
   GList *convs = purple_get_conversations();
   PidginConversation *gtk_conv_handle = pidgin_conversations_get_handle();
   void *conv_handle = purple_conversations_get_handle();
+
+  avatar_store = g_hash_table_new(g_int_hash, g_str_equal);
 
   /* for markup */
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,
