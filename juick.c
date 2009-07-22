@@ -27,18 +27,28 @@
 #include <sys/stat.h>
 
 #include <glib.h>
-#include <glib/gi18n.h>
 
 // fetch_url
+#ifdef _WIN32
+#include <windows.h>
+#include <winsock.h>
+
+// XXX: plugin need it (it`s juick header)
+#include <internal.h>
+
+#pragma comment(lib, "ws2_32.lib")
+#else
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <unistd.h>
+#endif
 #define MAX_LEN 1024
 
 // pidgin
+#include <plugin.h>
 #include <imgstore.h>
 #include <account.h>
 #include <core.h>
@@ -517,8 +527,8 @@ create_juick_button_pidgin(PidginConversation *gtkconv)
   if (last_reply_button || last_button)
     return;
 
-  last_reply_button = gtk_button_new_with_label(_("last reply"));
-  last_button = gtk_button_new_with_label(_("last msg"));
+  last_reply_button = gtk_button_new_with_label("last reply");
+  last_button = gtk_button_new_with_label("last msg");
 
   g_signal_connect(G_OBJECT(last_reply_button), "clicked",
                    G_CALLBACK(cmd_button_cb), gtkconv);
@@ -713,20 +723,34 @@ static char*
 juick_make_avatar_dir()
 {
   struct stat sb;
-  char *home = getenv("HOME");
+  char *home;
   char *maybe_dir = (char *) malloc(MAX_PATH);
 
+#ifdef _WIN32
+  home = getenv("APPDATA");
+  sprintf(maybe_dir, "%s/tmp-juick/", home);
+#else
+  home = getenv("HOME");
   strcpy(maybe_dir, "/tmp/pidgin-juick/");
+#endif
 
   if (home) {
     sprintf(maybe_dir, "%s/.purple/juick-avatars", home);
     if (stat(maybe_dir, &sb) == -1) {
+#ifdef _WIN32
+      mkdir(maybe_dir);
+#else
       mkdir(maybe_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
     }
     return maybe_dir;
   }
   // aren`t HOME ?
+#ifdef _WIN32
+  mkdir(maybe_dir);
+#else
   mkdir(maybe_dir, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+#endif
 
   return maybe_dir;
 }
@@ -823,7 +847,7 @@ get_config_frame(PurplePlugin *plugin)
   hbox = gtk_hbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-  button = gtk_check_button_new_with_label(_("Use Avatar ?"));
+  button = gtk_check_button_new_with_label("Use Avatar ?");
   gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
   if (f)
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
