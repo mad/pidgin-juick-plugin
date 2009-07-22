@@ -55,6 +55,9 @@
 #define MAX_PATH 256
 #define DBGID "juick"
 
+#define PREF_PREFIX "/plugins/gtk/juick-plugin"
+#define PREF_USE_AVATAR PREF_PREFIX "/avatar-p"
+
 struct _PurpleStoredImage
 {
   int id;
@@ -81,6 +84,10 @@ static GHashTable *avatar_store;
 
 static int juick_smile_add_fake(char *);
 
+static void disconnect_prefs_callbacks(GtkObject *, gpointer );
+static void toggle_avatar(GtkWidget *, gpointer );
+static GtkWidget * get_config_frame(PurplePlugin *);
+
 static gchar* juick_avatar_url_extract(const gchar *);
 static gchar* juick_make_avatar_dir();
 static void juick_avatar_init();
@@ -96,7 +103,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   char *startnew, *new;
   char *start, *end;
   char imgbuf[64];
-  int i = 0, tag_num = 0;
+  int i = 0, tag_num = 0, use_avatar;
   char maybe_path[MAX_PATH];
   JuickAvatar *javatar, *tmpavatar;
 
@@ -109,8 +116,9 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   new = (char *) malloc(strlen(t) * 20);
   memset(new, 0, strlen(t) * 20);
   startnew = new;
-  purple_debug_info("juick", "starting markup message\n");
+  purple_debug_info(DBGID, "starting markup message\n");
 
+  use_avatar = purple_prefs_get_int(PREF_USE_AVATAR);
   // XXX: use regex ?
   while(*t) {
     // mark #ID
@@ -147,7 +155,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
       if((end - start) > 1
          && (end - start) < 20) {
 	// display avatar only by owner message
-	if (*t == ':') {
+	if (use_avatar && *t == ':') {
 	  javatar = g_new(JuickAvatar, 1);
 	  javatar->name = (char *) malloc(20);
 	  strncpy(javatar->name, start + 1, end - start - 1);
@@ -156,14 +164,14 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
 	  if (!tmpavatar) {
 	    juick_download_avatar(javatar->name);
 	    sprintf(maybe_path, "%s/%s.png", juick_avatar_dir, javatar->name);
-	    purple_debug_info("juick", "path to image %s\n", maybe_path);
+	    purple_debug_info(DBGID, "path to image %s\n", maybe_path);
 	    javatar->id = juick_smile_add_fake(maybe_path);
 	    g_hash_table_insert(avatar_store, javatar->name, javatar);
 	  } else {
 	    javatar = tmpavatar;
 	  }
 	  g_snprintf(imgbuf, sizeof(imgbuf), "<img id=\"%d\"> ", javatar->id);
-	  purple_debug_info("juick", "add avatar %s\n", imgbuf);
+	  purple_debug_info(DBGID, "add avatar %s\n", imgbuf);
 	  strcat(new, imgbuf);
 	  i += strlen(imgbuf);
 	}
@@ -398,7 +406,7 @@ juick_smile_add_fake(char *filename)
   PurpleStoredImage *img;
 
   if (!g_file_get_contents(filename, &filedata, &size, &error)) {
-    purple_debug_info("juick", "g_file_get error\n");
+    purple_debug_info(DBGID, "g_file_get error\n");
     g_error_free(error);
 
     return 0;
@@ -455,7 +463,7 @@ intercept_sent(PurpleAccount *account, const char *who, char **message, void* pD
   if(*msg == '#') {
     msg++;
     id_last_reply = atoi(msg);
-      purple_debug_misc("purple-juick", "Juick-plugin: mem last reply %d\n",
+      purple_debug_misc(DBGID, "Juick-plugin: mem last reply %d\n",
                         id_last_reply);
   }
   return TRUE;
@@ -478,7 +486,7 @@ cmd_button_cb(GtkButton *button, PidginConversation *gtkconv)
   label = gtk_button_get_label(button);
 
   if(strcmp(label, "last reply") == 0) {
-    purple_debug_misc("purple-juick", "Juick-plugin: last reply button %d\n",
+    purple_debug_misc(DBGID, "Juick-plugin: last reply button %d\n",
                       id_last_reply);
     if(id_last_reply) {
       sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
@@ -577,7 +585,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
       // this cyrilic 'Ы' 'ы'
     case 1753:
     case 1785:
-      purple_debug_misc("purple-juick", "Juick-plugin: \\C-s pressed\n");
+      purple_debug_misc(DBGID, "Juick-plugin: \\C-s pressed\n");
       serv_send_im(connection, juick_jid, "#", PURPLE_MESSAGE_SEND);
       break;
     case 'r':
@@ -585,7 +593,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
       // this cyrrilic 'К' 'к'
     case 1739:
     case 1771:
-      purple_debug_misc("purple-juick", "Juick-plugin: \\C-r pressed\n");
+      purple_debug_misc(DBGID, "Juick-plugin: \\C-r pressed\n");
       if(id_last_reply) {
         sprintf(tmp, "purple-url-handler \"xmpp:juick@juick.com?message;body=%%23%d+\"&",
                 id_last_reply);
@@ -728,9 +736,6 @@ juick_avatar_init()
 {
   avatar_store = g_hash_table_new(g_int_hash, g_str_equal);
   juick_avatar_dir = juick_make_avatar_dir();
-
-  //  avatar_mutex = g_mutex_new();
-  //  data_cond = g_cond_new();
 }
 
 static gboolean
@@ -741,8 +746,6 @@ plugin_load(PurplePlugin *plugin)
   void *conv_handle = purple_conversations_get_handle();
 
   juick_avatar_init();
-  juick_download_avatar("ugnich");
-  juick_download_avatar("mad");
 
   /* for markup */
   purple_signal_connect(gtk_conv_handle, "displaying-im-msg", plugin,
@@ -800,6 +803,70 @@ plugin_unload(PurplePlugin *plugin)
   return TRUE;
 }
 
+static GtkWidget *
+get_config_frame(PurplePlugin *plugin)
+{
+  GtkWidget *ret;
+  GtkWidget *frame;
+  int f;
+  GtkWidget *vbox, *hbox, *button;
+
+  ret = gtk_vbox_new(FALSE, PIDGIN_HIG_CAT_SPACE);
+  gtk_container_set_border_width(GTK_CONTAINER(ret), PIDGIN_HIG_BORDER);
+
+  f = purple_prefs_get_int(PREF_USE_AVATAR);
+
+  frame = pidgin_make_frame(ret, "Avatar");
+  vbox = gtk_vbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
+  gtk_box_pack_start(GTK_BOX(frame), vbox, FALSE, FALSE, 0);
+
+  hbox = gtk_hbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
+  gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+  button = gtk_check_button_new_with_label(_("Use Avatar ?"));
+  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+  if (f)
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
+  g_signal_connect(G_OBJECT(button), "clicked",
+		   G_CALLBACK(toggle_avatar), NULL);
+  g_signal_connect(GTK_OBJECT(ret), "destroy",
+		   G_CALLBACK(disconnect_prefs_callbacks), plugin);
+
+  gtk_widget_show_all(ret);
+  return ret;
+}
+
+static void
+toggle_avatar(GtkWidget *widget, gpointer data)
+{
+  int f;
+
+  f = purple_prefs_get_int(PREF_USE_AVATAR);
+  f = (f ? 0 : 1);
+  purple_prefs_set_int(PREF_USE_AVATAR, f);
+}
+
+static void
+disconnect_prefs_callbacks(GtkObject *object, gpointer data)
+{
+  PurplePlugin *plugin = (PurplePlugin *)data;
+
+  purple_prefs_disconnect_by_handle(plugin);
+}
+
+static PidginPluginUiInfo ui_info =
+  {
+    get_config_frame,
+    0, /* page_num (reserved) */
+
+    /* padding */
+    NULL,
+    NULL,
+    NULL,
+    NULL
+  };
+
+
 static PurplePluginInfo info =
   {
     PURPLE_PLUGIN_MAGIC,
@@ -821,7 +888,7 @@ static PurplePluginInfo info =
     plugin_load,                                        /**< load */
     plugin_unload,                                      /**< unload */
     NULL,                                               /**< destroy */
-    NULL,                                               /**< ui_info        */
+    &ui_info,                                           /**< ui_info        */
     NULL,                                               /**< extra_info */
     NULL,                                               /**< prefs_info */
     NULL,                                               /**< actions */
@@ -835,6 +902,8 @@ static PurplePluginInfo info =
 static void
 init_plugin(PurplePlugin *plugin)
 {
+  purple_prefs_add_none(PREF_PREFIX);
+  purple_prefs_add_int(PREF_USE_AVATAR, 0);
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
