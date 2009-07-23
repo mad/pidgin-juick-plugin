@@ -108,11 +108,12 @@ static gboolean
 markup_msg(PurpleAccount *account, const char *who, char **displaying,
            PurpleConversation *conv, PurpleMessageFlags flags)
 {
-  char *t;
+  char *t, *ttmp;
   char *startnew, *new;
   char *start, *end;
   char imgbuf[64];
-  int i = 0, tag_num = 0, use_avatar, use_id_plus;
+  int i = 0, tag_num = 0, use_avatar, use_id_plus,
+    tag_max = 0;
   char maybe_path[MAX_PATH];
   JuickAvatar *javatar, *tmpavatar;
 
@@ -121,6 +122,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
 
   global_account_id = purple_account_get_username(conv->account);
   t = purple_markup_strip_html(*displaying);
+  ttmp = t;
 
   new = (char *) malloc(strlen(t) * 20);
   memset(new, 0, strlen(t) * 20);
@@ -154,6 +156,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
         strncat(new, start, end - start);
         strcat(new, "</A>");
 	i += 25 + (end - start)*2;
+	tag_max += 2;
         continue;
       } else {
         t = start;
@@ -189,6 +192,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
 	  purple_debug_info(DBGID, "add avatar %s\n", imgbuf);
 	  strcat(new, imgbuf);
 	  i += strlen(imgbuf);
+	  tag_max += 1;
 	}
         strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
@@ -196,6 +200,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
         strncat(new, start, end - start);
         strcat(new, "</A>");
         i += 24 + (end - start)*2;
+	tag_max += 2;
         continue;
       } else {
         t = start;
@@ -229,6 +234,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
           strncat(new, start, end - start);
           strcat(new, "</I></FONT>");
           i += 36 + end - start;
+	  tag_max += 4;
           tag_num++;
         } else {
           t = start;
@@ -263,6 +269,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
         strncat(new, start, end - start);
         strcat(new, "</B>");
         i += 7 + end - start;
+	tag_max += 2;
         // skip *
         t++;
         continue;
@@ -292,6 +299,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
         strcat(new, "<I>");
         strncat(new, start, end - start);
         strcat(new, "</I>");
+	tag_max += 2;
         i += 7 + end - start;
         // skip /
         t++;
@@ -322,6 +330,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
         strcat(new, "<U>");
         strncat(new, start, end - start);
         strcat(new, "</U>");
+	tag_max += 2;
         i += 7 + end - start;
         // skip _
         t++;
@@ -335,12 +344,17 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
     t++;
   }
 
-  t = *displaying;
-  new = startnew;
-
-  *displaying = g_strdup_printf("%s", new);
-  free(new);
-  g_free(t);
+  if (tag_max < 100) {
+    t = *displaying;
+    new = startnew;
+    *displaying = g_strdup_printf("%s", new);
+    free(new);
+    g_free(ttmp);
+    g_free(t);
+  } else {
+    g_free(ttmp);
+    free(new);
+  }
 
   return FALSE;
 }
