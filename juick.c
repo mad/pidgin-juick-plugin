@@ -32,10 +32,7 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <winsock.h>
-
-// XXX: plugin need it (it`s juick header)
 #include <internal.h>
-
 #pragma comment(lib, "ws2_32.lib")
 #else
 #include <sys/types.h>
@@ -67,6 +64,7 @@
 
 #define PREF_PREFIX "/plugins/gtk/juick-plugin"
 #define PREF_USE_AVATAR PREF_PREFIX "/avatar-p"
+#define PREF_USE_ID_PLUS PREF_PREFIX "/id_plus"
 
 struct _PurpleStoredImage
 {
@@ -96,6 +94,7 @@ static int juick_smile_add_fake(char *);
 
 static void disconnect_prefs_callbacks(GtkObject *, gpointer );
 static void toggle_avatar(GtkWidget *, gpointer );
+static void toggle_id(GtkWidget *, gpointer );
 static GtkWidget * get_config_frame(PurplePlugin *);
 
 static gchar* juick_avatar_url_extract(const gchar *);
@@ -113,7 +112,7 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   char *startnew, *new;
   char *start, *end;
   char imgbuf[64];
-  int i = 0, tag_num = 0, use_avatar;
+  int i = 0, tag_num = 0, use_avatar, use_id_plus;
   char maybe_path[MAX_PATH];
   JuickAvatar *javatar, *tmpavatar;
 
@@ -129,6 +128,8 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
   purple_debug_info(DBGID, "starting markup message\n");
 
   use_avatar = purple_prefs_get_int(PREF_USE_AVATAR);
+  use_id_plus = purple_prefs_get_int(PREF_USE_ID_PLUS);
+
   // XXX: use regex ?
   while(*t) {
     // mark #ID
@@ -145,10 +146,14 @@ markup_msg(PurpleAccount *account, const char *who, char **displaying,
          && (*t == ' ' || *t == '\n' || *t == 0 )) {
         strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
-        strcat(new, "+\">");
+	if(use_id_plus) {
+	  strcat(new, "+\">");
+	} else {
+	  strcat(new, " \">");
+	}
         strncat(new, start, end - start);
         strcat(new, "</A>");
-        i += 25 + (end - start)*2;
+	i += 25 + (end - start)*2;
         continue;
       } else {
         t = start;
@@ -840,7 +845,7 @@ get_config_frame(PurplePlugin *plugin)
 
   f = purple_prefs_get_int(PREF_USE_AVATAR);
 
-  frame = pidgin_make_frame(ret, "Avatar");
+  frame = pidgin_make_frame(ret, "Settings");
   vbox = gtk_vbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
   gtk_box_pack_start(GTK_BOX(frame), vbox, FALSE, FALSE, 0);
 
@@ -856,8 +861,28 @@ get_config_frame(PurplePlugin *plugin)
   g_signal_connect(GTK_OBJECT(ret), "destroy",
 		   G_CALLBACK(disconnect_prefs_callbacks), plugin);
 
+  button = gtk_check_button_new_with_label("Add + after id?");
+  gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+  if (f)
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
+  g_signal_connect(G_OBJECT(button), "clicked",
+		   G_CALLBACK(toggle_id), NULL);
+  g_signal_connect(GTK_OBJECT(ret), "destroy",
+		   G_CALLBACK(disconnect_prefs_callbacks), plugin);
+
+
   gtk_widget_show_all(ret);
   return ret;
+}
+
+static void
+toggle_id(GtkWidget *widget, gpointer data)
+{
+  int f;
+
+  f = purple_prefs_get_int(PREF_USE_ID_PLUS);
+  f = (f ? 0 : 1);
+  purple_prefs_set_int(PREF_USE_ID_PLUS, f);
 }
 
 static void
@@ -927,7 +952,9 @@ static void
 init_plugin(PurplePlugin *plugin)
 {
   purple_prefs_add_none(PREF_PREFIX);
+
   purple_prefs_add_int(PREF_USE_AVATAR, 0);
+  purple_prefs_add_int(PREF_USE_ID_PLUS, 0);
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
