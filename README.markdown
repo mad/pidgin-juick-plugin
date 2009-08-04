@@ -2,6 +2,8 @@
 
 [![www](http://img129.imageshack.us/img129/203/pidginavatar.th.png)](http://img129.imageshack.us/img129/203/pidginavatar.png)
 [![www](http://img263.imageshack.us/img263/3552/pidginwin.th.png)](http://img263.imageshack.us/img263/3552/pidginwin.png)
+[![www](http://img11.imageshack.us/img11/5388/pidginmood.th.png)](http://img11.imageshack.us/img11/5388/pidginmood.png)
+
 
 # Установка:
 
@@ -13,15 +15,16 @@
         tar xzf mad-pidgin-juick-plugin-*.tgz
         cd mad-pidgin-juick-plugin*
         cp juick.so ~/.purple/plugins/
+        cp -R moods ~/.purple/plugins/
 
-	 для пользователей Windows, скопируйте `juick.dll` в папку
-	`%APPDATA%\.purple\plugins\`
+    пользователи Windows, копируйте в папку `%APPDATA%\.purple\plugins\`
 
 - Создать локальный репозиторий:
 
         git clone git://github.com/mad/pidgin-juick-plugin.git
         cd pidgin-juick-plugin
         cp juick.so ~/.purple/plugins/
+        cp -R moods ~/.purple/plugins/
 
 - Для пользователей gentoo:
 
