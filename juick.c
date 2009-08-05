@@ -171,6 +171,7 @@ GtkWidget *mood_button_from_file(const char *, const char *,
 				 GtkWidget *);
 static void mood_make_stanza(PurpleConnection *, char **, gpointer);
 static void mood_message_hook(GtkWidget *, GtkWidget *);
+static void remove_juick_mood_button(PidginConversation *);
 
 static int juick_smile_add_fake(char *);
 
@@ -240,7 +241,6 @@ markup_msg(PurpleAccount *account, const char *who,
         strncat(new, start, end - start);
         strcat(new, "</A>");
 	i += 25 + (end - start)*2;
-	tag_max += 2;
         continue;
       } else {
         t = start;
@@ -276,7 +276,6 @@ markup_msg(PurpleAccount *account, const char *who,
 	  purple_debug_info(DBGID, "add avatar %s\n", imgbuf);
 	  strcat(new, imgbuf);
 	  i += strlen(imgbuf);
-	  tag_max += 1;
 	}
         strcat(new, "<A HREF=\"j:q?body=");
         strncat(new, start, end - start);
@@ -284,7 +283,6 @@ markup_msg(PurpleAccount *account, const char *who,
         strncat(new, start, end - start);
         strcat(new, "</A>");
         i += 24 + (end - start)*2;
-	tag_max += 2;
         continue;
       } else {
         t = start;
@@ -318,7 +316,6 @@ markup_msg(PurpleAccount *account, const char *who,
           strncat(new, start, end - start);
           strcat(new, "</I></FONT>");
           i += 36 + end - start;
-	  tag_max += 4;
           tag_num++;
         } else {
           t = start;
@@ -353,7 +350,6 @@ markup_msg(PurpleAccount *account, const char *who,
         strncat(new, start, end - start);
         strcat(new, "</B>");
         i += 7 + end - start;
-	tag_max += 2;
         // skip *
         t++;
         continue;
@@ -383,7 +379,6 @@ markup_msg(PurpleAccount *account, const char *who,
         strcat(new, "<I>");
         strncat(new, start, end - start);
         strcat(new, "</I>");
-	tag_max += 2;
         i += 7 + end - start;
         // skip /
         t++;
@@ -414,7 +409,6 @@ markup_msg(PurpleAccount *account, const char *who,
         strcat(new, "<U>");
         strncat(new, start, end - start);
         strcat(new, "</U>");
-	tag_max += 2;
         i += 7 + end - start;
         // skip _
         t++;
@@ -428,15 +422,26 @@ markup_msg(PurpleAccount *account, const char *who,
     t++;
   }
 
+  new = purple_markup_linkify(startnew);
+
+  for (i = 0; i < strlen(new); i++) {
+    if (new[i] == '>') {
+      tag_max++;
+    }
+  }
+
+  purple_debug_info(DBGID, "count tag %d\n", tag_max);
+
   if (tag_max < 100) {
     t = *displaying;
-    new = startnew;
     *displaying = g_strdup_printf("%s", new);
-    free(new);
+    free(startnew);
     g_free(ttmp);
     g_free(t);
   } else {
+    // If '>' more 100, return default text
     g_free(ttmp);
+    free(startnew);
     free(new);
   }
 
@@ -630,7 +635,6 @@ mood_make_stanza(PurpleConnection *gc, char **packet, gpointer null)
   current_mood = NULL;
 }
 
-
 static void
 create_mood_button(PidginConversation *gtkconv)
 {
@@ -652,10 +656,13 @@ create_mood_button(PidginConversation *gtkconv)
 
   mood_button = gtk_button_new();
   bbox = gtk_vbox_new(FALSE, 0);
+  g_object_set_data(G_OBJECT(gtkconv->toolbar),
+		    "mood_bbox", bbox);
+  g_object_set_data(G_OBJECT(gtkconv->toolbar),
+		    "mood_button", mood_button);
+
   gtk_button_set_relief(GTK_BUTTON(mood_button), GTK_RELIEF_NONE);
-
   gtk_container_add(GTK_CONTAINER(mood_button), bbox);
-
   mood_path = purple_prefs_get_string(PREF_MOOD_PATH);
   tmp = g_strdup_printf("%s/amazed.png", mood_path);
   image = gtk_image_new_from_file(tmp);
@@ -851,12 +858,31 @@ remove_juick_button_pidgin(PidginConversation *gtkconv)
   GtkWidget *last_reply_button = NULL, *last_button = NULL;
 
   last_reply_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_reply_button");
+  last_button = g_object_get_data(G_OBJECT(gtkconv->toolbar), "last_button");
 
-  if (last_reply_button) {
+  if (last_reply_button && last_button) {
     gtk_widget_destroy(last_reply_button);
     gtk_widget_destroy(last_button);
     g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_reply_button", NULL);
     g_object_set_data(G_OBJECT(gtkconv->toolbar), "last_button", NULL);
+  }
+}
+
+static void
+remove_juick_mood_button(PidginConversation *gtkconv)
+{
+  GtkWidget *mood_button, *mood_bbox;
+
+  mood_button = g_object_get_data(G_OBJECT(gtkconv->toolbar),
+				  "mood_button");
+  mood_bbox = g_object_get_data(G_OBJECT(gtkconv->toolbar),
+				"mood_bbox");
+
+  if (mood_button) {
+    gtk_widget_destroy(mood_button);
+    gtk_widget_destroy(mood_bbox);
+    g_object_set_data(G_OBJECT(gtkconv->toolbar), "mood_bbox", NULL);
+    g_object_set_data(G_OBJECT(gtkconv->toolbar), "mood_button", NULL);
   }
 }
 
@@ -1115,10 +1141,12 @@ plugin_load(PurplePlugin *plugin)
 
     /* Setup Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
+      create_mood_button(PIDGIN_CONVERSATION(conv));
       create_juick_button_pidgin(PIDGIN_CONVERSATION(conv));
     }
     convs = convs->next;
   }
+
   memcpy(&juick_ops, purple_notify_get_ui_ops(), sizeof(PurpleNotifyUiOps));
   saved_notify_uri = juick_ops.notify_uri;
   juick_ops.notify_uri = juick_notify_uri;
@@ -1138,6 +1166,7 @@ plugin_unload(PurplePlugin *plugin)
     /* Remove Send button */
     if (PIDGIN_IS_PIDGIN_CONVERSATION(conv)) {
       remove_juick_button_pidgin(PIDGIN_CONVERSATION(conv));
+      remove_juick_mood_button(PIDGIN_CONVERSATION(conv));
     }
     convs = convs->next;
   }
