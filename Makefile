@@ -8,7 +8,7 @@ PIDGIN_DIR=/home/mad/git/pidgin-clone/pidgin/plugins/
 GTK_TOP=/home/mad/workspace/project/pidgin-dev/win32-dev/gtk_2_0/
 
 all:
-	gcc -Wall ${PURPLE_CFLAGS} juick.c juick-mood.c -o juick.so
+	gcc -Wall ${PURPLE_CFLAGS} juick.c -o juick.so
 	strip juick.so
 	cp juick.so ~/.purple/plugins/omg.so
 
