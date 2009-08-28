@@ -5,6 +5,9 @@
 [![www](http://img11.imageshack.us/img11/5388/pidginmood.th.png)](http://img11.imageshack.us/img11/5388/pidginmood.png)
 
 
+# ***ПЛАГИН НЕ РАБОТАЕТ С ПИДЖИНОМ ВЕРСИИ 2.6.* ***
+# ***Plugin does not work with Pidgin 2.6.* ***
+
 # Установка:
 
 Установить плагин можно одним из способов:
