@@ -147,7 +147,7 @@ markup_msg(PurpleAccount *account, const char *who,
       if((end - start) > 1
          && (end - start) < 20
          && (*t == ' ' || *t == '\n' || *t == 0 )) {
-        strcat(new, "<A HREF=\"j:q?body=");
+        strcat(new, "<A HREF=\"j://q?body=");
         strncat(new, start, end - start);
 	if(use_id_plus) {
 	  strcat(new, "+\">");
@@ -156,7 +156,7 @@ markup_msg(PurpleAccount *account, const char *who,
 	}
         strncat(new, start, end - start);
         strcat(new, "</A>");
-	i += 25 + (end - start)*2;
+	i += 27 + (end - start)*2;
         continue;
       } else {
         t = start;
@@ -193,12 +193,12 @@ markup_msg(PurpleAccount *account, const char *who,
 	  strcat(new, imgbuf);
 	  i += strlen(imgbuf);
 	}
-        strcat(new, "<A HREF=\"j:q?body=");
+        strcat(new, "<A HREF=\"j://q?body=");
         strncat(new, start, end - start);
         strcat(new, "\">");
         strncat(new, start, end - start);
         strcat(new, "</A>");
-        i += 24 + (end - start)*2;
+        i += 26 + (end - start)*2;
         continue;
       } else {
         t = start;
@@ -673,22 +673,6 @@ static gchar *fetch_url(const gchar *host, const gchar *url, int *res_len)
   return body_response;
 }
 
-static PurpleNotifyUiOps juick_ops;
-static void *(*saved_notify_uri)(const char *uri);
-
-static void * juick_notify_uri(const char *uri) {
-  void * retval = NULL;
-
-  purple_debug_misc(DBGID, "Go url %s\n", uri);
-
-  if(strncmp(uri, "j:", 2) == 0) {
-    purple_got_protocol_handler_uri(uri);
-  } else {
-    retval = saved_notify_uri(uri);
-  }
-  return retval;
-}
-
 static char*
 juick_make_avatar_dir()
 {
@@ -732,6 +716,44 @@ juick_avatar_init()
   juick_avatar_dir = juick_make_avatar_dir();
 }
 
+#if PURPLE_VERSION_CHECK(2, 6, 0)
+static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
+{
+        const gchar * url = gtk_imhtml_link_get_url(link);
+
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+        purple_debug_info(DBGID, "url = %s\n", url);
+
+        purple_got_protocol_handler_uri(url);
+
+        return TRUE;
+}
+
+static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link,
+                                                           GtkWidget * menu)
+{
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+        // Nothing yet T_T
+        return TRUE;
+}
+#else
+static PurpleNotifyUiOps juick_ops;
+static void *(*saved_notify_uri)(const char *uri);
+
+static void *juick_notify_uri(const char *uri) {
+	void *retval = NULL;
+
+	purple_debug_misc(DBGID, "Go url %s\n", uri);
+
+	if(strncmp(uri, "j:", 2) == 0) {
+		purple_got_protocol_handler_uri(uri);
+	} else {
+		retval = saved_notify_uri(uri);
+	}
+	return retval;
+}
+#endif
+
 static gboolean
 plugin_load(PurplePlugin *plugin)
 {
@@ -765,10 +787,15 @@ plugin_load(PurplePlugin *plugin)
     convs = convs->next;
   }
 
+#if PURPLE_VERSION_CHECK(2, 6, 0)
+  gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb,
+                                              juick_context_menu);
+#else
   memcpy(&juick_ops, purple_notify_get_ui_ops(), sizeof(PurpleNotifyUiOps));
   saved_notify_uri = juick_ops.notify_uri;
   juick_ops.notify_uri = juick_notify_uri;
   purple_notify_set_ui_ops(&juick_ops);
+#endif
 
   purple_signal_connect(purple_get_core(), "uri-handler",
 			plugin, PURPLE_CALLBACK(juick_uri_handler), NULL);
@@ -780,6 +807,13 @@ static gboolean
 plugin_unload(PurplePlugin *plugin)
 {
   GList *convs = purple_get_conversations();
+
+#if PURPLE_VERSION_CHECK(2, 6, 0)
+	gtk_imhtml_class_register_protocol("j://", NULL, NULL);
+#else
+	juick_ops.notify_uri = saved_notify_uri;
+	purple_notify_set_ui_ops(&juick_ops);
+#endif
 
   // XXX: maybe remove key_press_event ?
 
