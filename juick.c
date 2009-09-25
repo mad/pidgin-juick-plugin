@@ -49,7 +49,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
-	int i = 0, j = 0, ai = 0;
+	int i = 0, j = 0, ai = 0, tag_max = 0;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -61,69 +61,78 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	}
 
 	output = g_string_new("");
-	src = purple_markup_strip_html(*displaying);
-	purple_debug_info(DBGID, "%s\n", *displaying);
+	src = *displaying;
+	//src = purple_markup_strip_html(*displaying);
+	//purple_debug_info(DBGID, "%s\n", *displaying);
 
 	account_user = purple_account_get_username(account);
 	// now search message text and look for things to highlight
 	prev_char = src[i];
 	while(src[i] != '\0') {
 		//purple_debug_info(DBGID, "prev_char = %c, src[i] == %c\n", prev_char, src[i]);
+		if (src[i] == '<')
+			tag_max++;
 		if( (i == 0 || isspace(prev_char) || prev_char == '>') && (src[i] == '@' || src[i] == '#') )
 		{
-			prev_char = src[i];
-			i++;
-			j = i;
-			if (prev_char == '@') {
-				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-') )
-					j++;
-			} else if (prev_char == '#') {
-				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') )
-					j++;
-			}
-			if (i == j) {
-				g_string_append_c(output, prev_char);
+			if (tag_max < 25) {
+				prev_char = src[i];
+				i++;
+				j = i;
+				if (prev_char == '@') {
+					while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-') )
+						j++;
+				} else if (prev_char == '#') {
+					while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') )
+						j++;
+				}
+				if (i == j) {
+					g_string_append_c(output, prev_char);
+					continue;
+				}
+				old_char = src[j];
+				src[j] = '\0';
+				msgid = &src[i - 1];
+				g_string_append_printf(output, "<a href=\"j://q?account=%s&body=%s\">%s</a>", account_user, msgid, msgid);
+				src[j] = old_char;
+				if (src[j] == ':') 
+					ai = 0;
+				i = j;
+				prev_char = src[i - 1];
 				continue;
 			}
-			old_char = src[j];
-			src[j] = '\0';
-			msgid = &src[i - 1];
-			g_string_append_printf(output, "<a href=\"j://q?account=%s&body=%s\">%s</a>", account_user, msgid, msgid);
-			src[j] = old_char;
-			if (src[j] == ':') 
-				ai = 0;
-			i = j;
-			prev_char = src[i - 1];
 		} else if (isspace(prev_char) && ai == 2 && src[i] == '*') {
-			j = i;
-			while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
-				j++;
-				while (!isspace(src[j]) && src[j] != '<')
+			if (tag_max < 25) {
+				j = i;
+				while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
 					j++;
-				prev_char = src[j];
-				if (src[j] != '\0')
-					j++;
+					while (!isspace(src[j]) && src[j] != '<')
+						j++;
+					prev_char = src[j];
+					if (src[j] != '\0')
+						j++;
+				}
+				j--;
+				old_char = src[j];
+				src[j] = '\0';
+				msgid = &src[i - 1];
+				g_string_append_printf(output, "<font color=\"grey\">%s</font>", msgid);
+				src[j] = old_char;
+				i = j;
+				prev_char = src[i - 1];
+				continue;
 			}
-			j--;
-			old_char = src[j];
-			src[j] = '\0';
-			msgid = &src[i - 1];
-			g_string_append_printf(output, "<font color=\"grey\">%s</font>", msgid);
-			src[j] = old_char;
-			i = j;
-			prev_char = src[i - 1];
-		} else {
-			g_string_append_c(output, src[i]);
-			prev_char = src[i];
-			i++; ai++;
 		}
+		g_string_append_c(output, src[i]);
+		prev_char = src[i];
+		i++; ai++;
 	}
-	g_free(src);
+	//g_free(src);
 	free(*displaying);
-	src = g_string_free(output, FALSE);
+	(*displaying) = g_string_free(output, FALSE);
+	//src = g_string_free(output, FALSE);
 	//purple_debug_info(DBGID, "%s\n", src);
-	(*displaying) = purple_markup_linkify(src);
-	g_free(src);
+	//(*displaying) = purple_markup_linkify(src);
+	//g_free(src);
 	return FALSE;
 
 }
