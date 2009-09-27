@@ -49,7 +49,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
-	int i = 0, j = 0, ai = 0, tag_max = 0;
+	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 98;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -71,57 +71,68 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	while(src[i] != '\0') {
 		//purple_debug_info(DBGID, "prev_char = %c, src[i] == %c\n", prev_char, src[i]);
 		if (src[i] == '<')
-			tag_max++;
+			tag_count++;
+		if (tag_count > tag_max) {
+			msgid = purple_markup_strip_html(&src[i]);
+			g_string_append_printf(output, "%s", msgid);
+			free(msgid);
+			break;			
+		}
 		if( (i == 0 || isspace(prev_char) || prev_char == '>') && (src[i] == '@' || src[i] == '#') )
 		{
-			if (tag_max < 25) {
-				prev_char = src[i];
-				i++;
-				j = i;
-				if (prev_char == '@') {
-					while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-') )
-						j++;
-				} else if (prev_char == '#') {
-					while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') )
-						j++;
-				}
-				if (i == j) {
-					g_string_append_c(output, prev_char);
-					continue;
-				}
-				old_char = src[j];
-				src[j] = '\0';
-				msgid = &src[i - 1];
-				g_string_append_printf(output, "<a href=\"j://q?account=%s&body=%s\">%s</a>", account_user, msgid, msgid);
-				src[j] = old_char;
-				if (src[j] == ':') 
-					ai = 0;
-				i = j;
-				prev_char = src[i - 1];
-				continue;
-			}
-		} else if (isspace(prev_char) && ai == 2 && src[i] == '*') {
-			if (tag_max < 25) {
-				j = i;
-				while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
+			prev_char = src[i];
+			i++;
+			j = i;
+			if (prev_char == '@') {
+				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-') )
 					j++;
-					while (!isspace(src[j]) && src[j] != '<')
-						j++;
-					prev_char = src[j];
-					if (src[j] != '\0')
-						j++;
+			} else if (prev_char == '#') {
+				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') ) {
+					if (src[j] == '/') 
+						prev_char = '@';
+					j++;
 				}
-				j--;
-				old_char = src[j];
-				src[j] = '\0';
-				msgid = &src[i - 1];
-				g_string_append_printf(output, "<font color=\"grey\">%s</font>", msgid);
-				src[j] = old_char;
-				i = j;
-				prev_char = src[i - 1];
+			}
+			if (i == j) {
+				g_string_append_c(output, prev_char);
 				continue;
 			}
-		}
+			old_char = src[j];
+			src[j] = '\0';
+			msgid = &src[i - 1];
+			g_string_append_printf(output, 
+                          "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
+                          account_user, prev_char, msgid, msgid);
+			tag_count++; tag_count++;
+			src[j] = old_char;
+			if (src[j] == ':') 
+				ai = 0;
+			i = j;
+			prev_char = src[i - 1];
+			continue;
+		} else if (isspace(prev_char) && ai == 0 && src[i] == ':') {
+			
+		} /*else if (isspace(prev_char) && ai == 2 && src[i] == '*') {
+			j = i;
+			while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
+				j++;
+				while (!isspace(src[j]) && src[j] != '<')
+					j++;
+				prev_char = src[j];
+				if (src[j] != '\0')
+					j++;
+			}
+			j--;
+			old_char = src[j];
+			src[j] = '\0';
+			msgid = &src[i - 1];
+			g_string_append_printf(output, "<font color=\"grey\">%s</font>", msgid);
+			tag_count++; tag_count++;
+			src[j] = old_char;
+			i = j;
+			prev_char = src[i - 1];
+			continue;
+		}*/
 		g_string_append_c(output, src[i]);
 		prev_char = src[i];
 		i++; ai++;
@@ -136,34 +147,79 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	return FALSE;
 
 }
+
+gboolean jabber_message_received(PurpleConnection *gc, const char *type,
+                              const char *id, const char *from, const char *to,
+                              xmlnode *message)
+{
+	purple_debug_misc("signals test", "jabber message (type=%s, id=%s, "
+	                  "from=%s to=%s) %p\n",
+	                  type ? type : "(null)", id ? id : "(null)",
+	                  from ? from : "(null)", to ? to : "(null)", message);
+
+	xmlnode *node;
+	gchar *ts = NULL, *mood = NULL, *m;
+	const char *mood_attr;
+	int len;
+	node = xmlnode_get_child(message, "juick");
+	if (node) {
+		ts = g_strdup_printf(" %s", xmlnode_get_attrib(node, "ts"));
+		mood_attr = xmlnode_get_attrib(node, "mood");
+		if (mood_attr)
+			mood = g_strdup_printf(" mood: %s", mood_attr);
+		node = xmlnode_get_child(message, "body");
+		xmlnode_insert_data(node, ts, -1);
+		xmlnode_insert_data(node, mood, -1);
+		g_free(ts);
+	}
+	purple_debug_info(DBGID, "\n\n%s\n\n", xmlnode_get_attrib(node, "uid"));
+	
+	m = xmlnode_to_formatted_str(message, &len);
+	purple_debug_info(DBGID, "%s\n", m);
+	g_free(m);
+	node = xmlnode_new("mood");
+	xmlnode_insert_child(message, node);
+	/* We don't want the plugin to stop processing */
+	return FALSE;
+}
+
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
-	gchar *body = NULL, *account_user = NULL;
-//	char *account_id = g_hash_table_lookup(params, "account");
-
+	PurpleConnection *connection;
+	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
 
 	purple_debug_info(DBGID, "juick_uri_handler %s\n", proto);
-
-//	account = purple_accounts_find(account_id, "prpl-jabber");
 
 	if (g_ascii_strcasecmp(proto, "j") == 0) {
 		body = g_hash_table_lookup(params, "body");
 		account_user = g_hash_table_lookup(params, "account");
+		reply = g_hash_table_lookup(params, "reply");
+		send = g_hash_table_lookup(params, "send");
 		account = purple_accounts_find(account_user, "prpl-jabber");
 		if (body && account) {
-			conv = purple_find_conversation_with_account 
-			 (PURPLE_CONV_TYPE_ANY, JUICK_JID, account);
-			if (!conv) {
-				conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, 
+			conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, 
 								account, JUICK_JID);
-			}
 			purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
-			gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+			connection = purple_conversation_get_gc(gtkconv->active_conv);
+			if (send&&send[0] == '+') {
+				reply = g_strdup_printf("%s+", body);
+				serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				g_free(reply);
+			} else if (send) {
+				serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+			}
+			if (reply[0] == '#') {
+				reply = g_strdup_printf("%s+", body);
+				serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				g_free(reply);
+				gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
+			} else if (!send)
+				gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
 			gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 			return TRUE;
 		}
@@ -184,11 +240,49 @@ static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
         return TRUE;
 }
 
+void menu_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+        const gchar * url = gtk_imhtml_link_get_url(link);
+	gchar *murl = NULL;
+
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+
+	murl = g_strdup_printf("%s&send=+", url);
+        purple_got_protocol_handler_uri(murl);
+	g_free(murl);
+}
+
+void menu_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+        const gchar * url = gtk_imhtml_link_get_url(link);
+	gchar *murl = NULL;
+
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+
+	murl = g_strdup_printf("%s&send=-", url);
+        purple_got_protocol_handler_uri(murl);
+	g_free(murl);
+}
+
 static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, 
                                                            GtkWidget * menu)
 {
+	GtkWidget *menuitem;
+        const gchar *url = gtk_imhtml_link_get_url(link);
+
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
-        // Nothing yet T_T
+
+	if (!g_strrstr(url, "&reply=@")) {
+		return FALSE;
+	}
+
+	menuitem = gtk_menu_item_new_with_label("Open user info");
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	g_signal_connect(menuitem, "activate", G_CALLBACK(menu_info_activate_cb), link);
+	menuitem = gtk_menu_item_new_with_label("Open user posts");
+	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+	g_signal_connect(menuitem, "activate", G_CALLBACK(menu_posts_activate_cb), link);
+
         return TRUE;
 }
 #else
@@ -229,6 +323,8 @@ static PurplePluginPrefFrame * get_plugin_pref_frame(PurplePlugin *plugin)
 
 gboolean plugin_load(PurplePlugin *plugin)
 {
+
+	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb, 
                                                     juick_context_menu);
@@ -245,6 +341,10 @@ gboolean plugin_load(PurplePlugin *plugin)
 	purple_signal_connect(pidgin_conversations_get_handle(), 
 "displaying-im-msg", plugin, PURPLE_CALLBACK(juick_on_displaying), NULL);
 
+	/* Jabber signals */
+	if (jabber_handle) 
+		purple_signal_connect(jabber_handle, "jabber-receiving-message", plugin,
+		                      PURPLE_CALLBACK(jabber_message_received), NULL);
 	return TRUE;
 }
 
@@ -276,7 +376,6 @@ static PurplePluginUiInfo prefs_info =
 	NULL,
 	NULL
 };
-
 
 static PurplePluginInfo info =
 {
