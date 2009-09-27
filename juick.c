@@ -289,31 +289,34 @@ void menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, 
                                                            GtkWidget * menu)
 {
-	GtkWidget *menuitem;
+	GtkWidget *item, *img;
         const gchar *url = gtk_imhtml_link_get_url(link);
 
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
 
+	img = gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_MENU);
 	if (g_strrstr(url, "&reply=@")) {
-		menuitem = gtk_menu_item_new_with_label("Insert");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_insert_activate_cb), link);
-		menuitem = gtk_menu_item_new_with_label("See user info and posts");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_info_posts_activate_cb), link);
-		menuitem = gtk_menu_item_new_with_label("See user info");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_info_activate_cb), link);
-		menuitem = gtk_menu_item_new_with_label("See user posts");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+		item = gtk_image_menu_item_new_with_mnemonic("_Insert");
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("See _user info and posts");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_info_posts_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("See user _info");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_info_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("See user _posts");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
 	} else if (g_strrstr(url, "&reply=#")) {
-		menuitem = gtk_menu_item_new_with_label("See replies");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_insert_activate_cb), link);
-		menuitem = gtk_menu_item_new_with_label("Insert");
-		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+		item = gtk_image_menu_item_new_with_mnemonic("See _replies");
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("_Insert");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
 	} else {
 		return FALSE;
 	}
