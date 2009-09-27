@@ -62,8 +62,6 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 	output = g_string_new("");
 	src = *displaying;
-	//src = purple_markup_strip_html(*displaying);
-	//purple_debug_info(DBGID, "%s\n", *displaying);
 
 	account_user = purple_account_get_username(account);
 	// now search message text and look for things to highlight
@@ -101,8 +99,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			src[j] = '\0';
 			msgid = &src[i - 1];
 			g_string_append_printf(output, 
-                          "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
-                          account_user, prev_char, msgid, msgid);
+			  "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
+			  account_user, prev_char, msgid, msgid);
 			tag_count++; tag_count++;
 			src[j] = old_char;
 			if (src[j] == ':') 
@@ -137,13 +135,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		prev_char = src[i];
 		i++; ai++;
 	}
-	//g_free(src);
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
-	//src = g_string_free(output, FALSE);
-	//purple_debug_info(DBGID, "%s\n", src);
-	//(*displaying) = purple_markup_linkify(src);
-	//g_free(src);
 	return FALSE;
 
 }
@@ -206,19 +199,27 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
 			connection = purple_conversation_get_gc(gtkconv->active_conv);
-			if (send&&send[0] == '+') {
-				reply = g_strdup_printf("%s+", body);
-				serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
-				g_free(reply);
-			} else if (send) {
-				serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
-			}
 			if (reply[0] == '#') {
+				if (!send) {
+					reply = g_strdup_printf("%s+", body);
+					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					g_free(reply);
+					gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
+				} else if (send[0] == 'p')
+					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+			} else if (reply[0] == '@') {
 				reply = g_strdup_printf("%s+", body);
-				serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				if (send && g_strrstr(send, "ip")) {
+					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				} else if (send && send[0] == 'i'){
+					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+				} else if (send && send[0] == 'p') {
+					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				} else
+					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
 				g_free(reply);
-				gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
-			} else if (!send)
+			} else 
 				gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
 			gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 			return TRUE;
@@ -240,26 +241,47 @@ static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
         return TRUE;
 }
 
-void menu_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+        const gchar * url = gtk_imhtml_link_get_url(link);
+
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+
+        purple_got_protocol_handler_uri(url);
+}
+
+void menu_user_info_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
 
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
 
-	murl = g_strdup_printf("%s&send=+", url);
+	murl = g_strdup_printf("%s&send=ip", url);
         purple_got_protocol_handler_uri(murl);
 	g_free(murl);
 }
 
-void menu_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+void menu_user_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
 
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
 
-	murl = g_strdup_printf("%s&send=-", url);
+	murl = g_strdup_printf("%s&send=i", url);
+        purple_got_protocol_handler_uri(murl);
+	g_free(murl);
+}
+
+void menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+        const gchar * url = gtk_imhtml_link_get_url(link);
+	gchar *murl = NULL;
+
+        purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
+
+	murl = g_strdup_printf("%s&send=p", url);
         purple_got_protocol_handler_uri(murl);
 	g_free(murl);
 }
@@ -272,16 +294,29 @@ static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link,
 
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
 
-	if (!g_strrstr(url, "&reply=@")) {
+	if (g_strrstr(url, "&reply=@")) {
+		menuitem = gtk_menu_item_new_with_label("Insert");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		menuitem = gtk_menu_item_new_with_label("See user info and posts");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_info_posts_activate_cb), link);
+		menuitem = gtk_menu_item_new_with_label("See user info");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_info_activate_cb), link);
+		menuitem = gtk_menu_item_new_with_label("See user posts");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+	} else if (g_strrstr(url, "&reply=#")) {
+		menuitem = gtk_menu_item_new_with_label("See replies");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		menuitem = gtk_menu_item_new_with_label("Insert");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+		g_signal_connect(menuitem, "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+	} else {
 		return FALSE;
 	}
-
-	menuitem = gtk_menu_item_new_with_label("Open user info");
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-	g_signal_connect(menuitem, "activate", G_CALLBACK(menu_info_activate_cb), link);
-	menuitem = gtk_menu_item_new_with_label("Open user posts");
-	gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-	g_signal_connect(menuitem, "activate", G_CALLBACK(menu_posts_activate_cb), link);
 
         return TRUE;
 }
