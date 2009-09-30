@@ -76,13 +76,13 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			free(msgid);
 			break;			
 		}
-		if( (i == 0 || isspace(prev_char) || prev_char == '>') && (src[i] == '@' || src[i] == '#') )
+		if( (i == 0 || isspace(prev_char) || prev_char == '>' || prev_char == '(') && (src[i] == '@' || src[i] == '#') )
 		{
 			prev_char = src[i];
 			i++;
 			j = i;
 			if (prev_char == '@') {
-				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-') )
+				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-'|| src[j] == '@' || src[j] == '.')) 
 					j++;
 			} else if (prev_char == '#') {
 				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') ) {
@@ -210,14 +210,15 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			} else if (reply[0] == '@') {
 				reply = g_strdup_printf("%s+", body);
 				if (send && g_strrstr(send, "ip")) {
-					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
-					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
 				} else if (send && send[0] == 'i'){
 					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
 				} else if (send && send[0] == 'p') {
 					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
-				} else
-					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+				} else {
+					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+				}
 				g_free(reply);
 			} else 
 				gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
@@ -241,7 +242,7 @@ static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
         return TRUE;
 }
 
-void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+void menu_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 
@@ -250,7 +251,7 @@ void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
         purple_got_protocol_handler_uri(url);
 }
 
-void menu_user_info_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
@@ -296,13 +297,13 @@ static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link,
 
 	img = gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_MENU);
 	if (g_strrstr(url, "&reply=@")) {
-		item = gtk_image_menu_item_new_with_mnemonic("_Insert");
+		item = gtk_image_menu_item_new_with_mnemonic("See _user info and posts");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
-		item = gtk_menu_item_new_with_mnemonic("See _user info and posts");
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("_Insert");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_info_posts_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See user _info");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_info_activate_cb), link);
@@ -313,7 +314,7 @@ static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link,
 		item = gtk_image_menu_item_new_with_mnemonic("See _replies");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("_Insert");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
