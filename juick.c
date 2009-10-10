@@ -49,7 +49,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
-	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 98;
+	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 92;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -85,7 +85,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-'|| src[j] == '@' || src[j] == '.')) 
 					j++;
 			} else if (prev_char == '#') {
-				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/' || src[j] == '+') ) {
+				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/') ) {
 					if (src[j] == '/') 
 						prev_char = '@';
 					j++;
@@ -141,6 +141,11 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 }
 
+//void cb(PurpleUtilFetchUrlData *url_data, int* id, const gchar *url_text, gsize len, const gchar *error_message)
+//{
+//	*id = purple_imgstore_add_with_id(url_data->buf, len, NULL);
+//}
+
 gboolean jabber_message_received(PurpleConnection *gc, const char *type,
                               const char *id, const char *from, const char *to,
                               xmlnode *message)
@@ -164,14 +169,18 @@ gboolean jabber_message_received(PurpleConnection *gc, const char *type,
 		xmlnode_insert_data(node, ts, -1);
 		xmlnode_insert_data(node, mood, -1);
 		g_free(ts);
+//		n = xmlnode_new("img");
+//		xmlnode_set_attrib(n, "src", "http://s.bash.org.ru/img/ts/bvtpbvi3p64ytt1g404480.jpg");
+//		xmlnode_insert_child(node, n);
 	}
-	purple_debug_info(DBGID, "\n\n%s\n\n", xmlnode_get_attrib(node, "uid"));
-	
+//	purple_debug_info(DBGID, "\n\n%s\n\n", xmlnode_get_attrib(node, "uid"));
+//	
 	m = xmlnode_to_formatted_str(message, &len);
 	purple_debug_info(DBGID, "%s\n", m);
 	g_free(m);
-	node = xmlnode_new("mood");
-	xmlnode_insert_child(message, node);
+//	node = xmlnode_new("mood");
+//	xmlnode_insert_child(message, node);
+
 	/* We don't want the plugin to stop processing */
 	return FALSE;
 }
