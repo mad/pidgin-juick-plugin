@@ -34,6 +34,7 @@
 #include <gtkplugin.h>
 #include <gtkimhtml.h>
 #include <gtkconv.h>
+#include <gtksound.h>
 
 #define DBGID "juick"
 #define JUICK_JID "juick@juick.com"
@@ -88,7 +89,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			} else if (prev_char == '#') {
 				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/') ) {
 					if (src[j] == '/') 
-						prev_char = '@';
+						prev_char = '#';
 					j++;
 				}
 			}
@@ -147,25 +148,6 @@ gboolean iq_received_cb(PurpleConnection *gc, const char *type, const char *id,
 {
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	/*xmlnode *node, *bodyn;
-	char *body;
-
-	body = xmlnode_to_formatted_str(iq, NULL);
-	purple_debug_info(DBGID, "%s\n", body);
-	g_free(body);
-
-	node = xmlnode_get_child(iq, "query");
-	if (node) 
-		node = xmlnode_get_child(node, "juick");
-
-	while (node) {
-		bodyn = xmlnode_get_child(node, "body");
-		body = xmlnode_get_data(bodyn);
-		purple_debug_info(DBGID, "%s\n", "asdf");
-		serv_got_im(gc, from, body, PURPLE_MESSAGE_SEND, 0);
-		g_free(body);
-		node = xmlnode_get_next_twin(node);
-	}*/
 	/* We don't want the plugin to stop processing */
 	return FALSE;
 }
@@ -173,11 +155,12 @@ gboolean iq_received_cb(PurpleConnection *gc, const char *type, const char *id,
 void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node, *bodyn, *tagn;
-	gchar *body = NULL, *newbody = NULL, *tags = NULL, *tag = NULL, 
+	gchar *body = NULL, *tags = NULL, *tag = NULL, 
 	      *s = NULL, *midrid = NULL;
-	const char *uname, *mid, *rid, *mood, *ts, *from = NULL;
+	const char *uname, *mid, *rid, *mood, *ts, *from = NULL, *replies = NULL;
 	GString *output = NULL;
 	PurpleConversation *conv;
+	PurpleMessageFlags flags;
 	int i = 0;
 	gboolean first = TRUE;
 
@@ -200,6 +183,7 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			mid = xmlnode_get_attrib(node, "mid");
 			rid = xmlnode_get_attrib(node, "rid");
 			ts = xmlnode_get_attrib(node, "ts");
+			replies = xmlnode_get_attrib(node, "replies");
 			mood = xmlnode_get_attrib(node, "mood");
 			tagn = xmlnode_get_child(node, "tag");
 			while (tagn) {
@@ -223,17 +207,15 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			else if (mood)
 				s = g_strdup_printf("mood: %s", mood);
 			else
-				s = g_strdup_printf("%s", "");
+				s = g_strdup_printf("%s", " ");
+			g_free(tags);
 			if (rid)
 				midrid = g_strdup_printf("%s/%s", mid, rid);
 			else
 				midrid = g_strdup_printf("%s", mid);
-			g_free(tags);
-			newbody = g_strdup_printf("%s @%s: %s<br/>%s<br/>#%s",ts, uname, s, body, midrid);
+			g_string_append_printf(output, "%s @%s: %s<br/>%s<br/>#%s", ts, uname, s, body, midrid);
 			g_free(s);
 			g_free(body);
-			g_string_append(output, newbody);
-			g_free(newbody);
 			if (first) {
 				i = 0;
 				while (midrid) {
@@ -243,9 +225,9 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 					}
 					i++;
 				}
-				body = g_strdup_printf("http://juick.com/%s<br/>", midrid);
-				g_string_append(output, body);
-				g_free(body);
+				g_string_append_printf(output, " http://juick.com/%s<br/>", midrid);
+				if (replies)
+					g_string_append_printf(output, "Replies (%s)<br/>", replies);
 			} else
 				g_string_append(output, "<br/>");
 			g_free(midrid);
@@ -267,14 +249,25 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		node = xmlnode_get_next_twin(node);
 		first = FALSE;
 	}
+	flags = PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY;
 	if (output->len != 0) {
-//		serv_got_im(gc, "j", g_string_free(output, FALSE), PURPLE_MESSAGE_SEND, 0);
-		conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, gc->account, from);
-		purple_conv_im_write(PURPLE_CONV_IM(conv), "j", g_string_free(output, FALSE), PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY | PURPLE_MESSAGE_DELAYED, time(NULL));
+		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
+		body = g_string_free(output, FALSE);
+//		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
+		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, body, flags, time(NULL));
+//		g_free(body);
 		xmlnode_free(*packet);
 		*packet = NULL;
-	} else
+	} else {
 		g_string_free(output, TRUE);
+		node = xmlnode_get_child(*packet, "error");
+		if (node && from && ((strcmp(from, JUICK_JID) == 0) || (strcmp(from, JUBO_JID) == 0))) {
+			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
+			body = g_strdup_printf("error %s", xmlnode_get_attrib(node, "code"));
+			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, body, flags, time(NULL));
+//			g_free(body);
+		}
+	}
 }
 
 gboolean message_received_cb(PurpleConnection *gc, const char *type,
