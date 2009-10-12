@@ -21,6 +21,7 @@
 
 #include <ctype.h>
 #include <glib.h>
+#include <string.h>
 
 // libpurple
 #include <core.h>
@@ -53,8 +54,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	if( (!g_ascii_strcasecmp(who, JUICK_JID) && 
-             !g_ascii_strcasecmp(who, JUBO_JID)) || 
+	if( (!strcmp(who, JUICK_JID) && 
+             !strcmp(who, JUBO_JID)) || 
                 (flags & PURPLE_MESSAGE_SYSTEM) ) 
 	{
 		return FALSE;
@@ -141,45 +142,146 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 }
 
-//void cb(PurpleUtilFetchUrlData *url_data, int* id, const gchar *url_text, gsize len, const gchar *error_message)
-//{
-//	*id = purple_imgstore_add_with_id(url_data->buf, len, NULL);
-//}
+gboolean iq_received_cb(PurpleConnection *gc, const char *type, const char *id,
+                                              const char *from, xmlnode *iq)
+{
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-gboolean jabber_message_received(PurpleConnection *gc, const char *type,
+	/*xmlnode *node, *bodyn;
+	char *body;
+
+	body = xmlnode_to_formatted_str(iq, NULL);
+	purple_debug_info(DBGID, "%s\n", body);
+	g_free(body);
+
+	node = xmlnode_get_child(iq, "query");
+	if (node) 
+		node = xmlnode_get_child(node, "juick");
+
+	while (node) {
+		bodyn = xmlnode_get_child(node, "body");
+		body = xmlnode_get_data(bodyn);
+		purple_debug_info(DBGID, "%s\n", "asdf");
+		serv_got_im(gc, from, body, PURPLE_MESSAGE_SEND, 0);
+		g_free(body);
+		node = xmlnode_get_next_twin(node);
+	}*/
+	/* We don't want the plugin to stop processing */
+	return FALSE;
+}
+
+void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
+{
+	xmlnode *node, *bodyn, *tagn;
+	gchar *body = NULL, *newbody = NULL, *tags = NULL, *tag = NULL, 
+	      *s = NULL, *midrid = NULL;
+	const char *uname, *mid, *rid, *mood, *ts, *from = NULL;
+	GString *output = NULL;
+	PurpleConversation *conv;
+	int i = 0;
+	gboolean first = TRUE;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	node = xmlnode_get_child(*packet, "query");
+	if (node) {
+		node = xmlnode_get_child(node, "juick");
+	} else 
+		node = xmlnode_get_child(*packet, "juick");
+
+	from = xmlnode_get_attrib(*packet, "from");
+
+	output = g_string_new("");
+	while (node) {
+		bodyn = xmlnode_get_child(node, "body");
+		if (bodyn) {
+			body = xmlnode_get_data_unescaped(bodyn);
+			uname = xmlnode_get_attrib(node, "uname");
+			mid = xmlnode_get_attrib(node, "mid");
+			rid = xmlnode_get_attrib(node, "rid");
+			ts = xmlnode_get_attrib(node, "ts");
+			mood = xmlnode_get_attrib(node, "mood");
+			tagn = xmlnode_get_child(node, "tag");
+			while (tagn) {
+				tag = xmlnode_get_data(tagn);
+				if (tag) {
+					if (tags) {
+						s = g_strdup_printf("%s *%s", tags, tag);
+						g_free(tags);
+						tags = s;
+					} else {
+						tags = g_strdup_printf("*%s", tag);
+					}
+				}
+				g_free(tag);
+				tagn = xmlnode_get_next_twin(tagn);
+			}
+			if (tags && mood)
+				s = g_strdup_printf("%s mood: %s", tags, mood);
+			else if (tags)
+				s = g_strdup_printf("%s", tags);
+			else if (mood)
+				s = g_strdup_printf("mood: %s", mood);
+			else
+				s = g_strdup_printf("%s", "");
+			if (rid)
+				midrid = g_strdup_printf("%s/%s", mid, rid);
+			else
+				midrid = g_strdup_printf("%s", mid);
+			g_free(tags);
+			newbody = g_strdup_printf("%s @%s: %s<br/>%s<br/>#%s",ts, uname, s, body, midrid);
+			g_free(s);
+			g_free(body);
+			g_string_append(output, newbody);
+			g_free(newbody);
+			if (first) {
+				i = 0;
+				while (midrid) {
+					if (midrid[i] == '/') {
+						midrid[i] = '#';
+						break;
+					}
+					i++;
+				}
+				body = g_strdup_printf("http://juick.com/%s<br/>", midrid);
+				g_string_append(output, body);
+				g_free(body);
+			} else
+				g_string_append(output, "<br/>");
+			g_free(midrid);
+			body = NULL;
+			bodyn = xmlnode_get_child(*packet, "body");
+			if (bodyn) {
+				body = xmlnode_get_data(bodyn);
+				i = 0;
+				if (body && body[0] != '@') {
+					while (!isspace(body[i]) || isblank(body[i]))
+						i++;
+					body[i + 1] = '\0';
+				}
+			}
+			if (body && i != 0)
+				g_string_prepend(output, body);
+			g_free(body);
+		}
+		node = xmlnode_get_next_twin(node);
+		first = FALSE;
+	}
+	if (output->len != 0) {
+//		serv_got_im(gc, "j", g_string_free(output, FALSE), PURPLE_MESSAGE_SEND, 0);
+		conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, gc->account, from);
+		purple_conv_im_write(PURPLE_CONV_IM(conv), "j", g_string_free(output, FALSE), PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY | PURPLE_MESSAGE_DELAYED, time(NULL));
+		xmlnode_free(*packet);
+		*packet = NULL;
+	} else
+		g_string_free(output, TRUE);
+}
+
+gboolean message_received_cb(PurpleConnection *gc, const char *type,
                               const char *id, const char *from, const char *to,
                               xmlnode *message)
 {
-	purple_debug_misc("signals test", "jabber message (type=%s, id=%s, "
-	                  "from=%s to=%s) %p\n",
-	                  type ? type : "(null)", id ? id : "(null)",
-	                  from ? from : "(null)", to ? to : "(null)", message);
-
-	xmlnode *node;
-	gchar *ts = NULL, *mood = NULL, *m;
-	const char *mood_attr;
-	int len;
-	node = xmlnode_get_child(message, "juick");
-	if (node) {
-		ts = g_strdup_printf(" %s", xmlnode_get_attrib(node, "ts"));
-		mood_attr = xmlnode_get_attrib(node, "mood");
-		if (mood_attr)
-			mood = g_strdup_printf(" mood: %s", mood_attr);
-		node = xmlnode_get_child(message, "body");
-		xmlnode_insert_data(node, ts, -1);
-		xmlnode_insert_data(node, mood, -1);
-		g_free(ts);
-//		n = xmlnode_new("img");
-//		xmlnode_set_attrib(n, "src", "http://s.bash.org.ru/img/ts/bvtpbvi3p64ytt1g404480.jpg");
-//		xmlnode_insert_child(node, n);
-	}
-//	purple_debug_info(DBGID, "\n\n%s\n\n", xmlnode_get_attrib(node, "uid"));
-//	
-	m = xmlnode_to_formatted_str(message, &len);
-	purple_debug_info(DBGID, "%s\n", m);
-	g_free(m);
-//	node = xmlnode_new("mood");
-//	xmlnode_insert_child(message, node);
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
 	/* We don't want the plugin to stop processing */
 	return FALSE;
@@ -188,10 +290,12 @@ gboolean jabber_message_received(PurpleConnection *gc, const char *type,
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
+	const char *IQSTANZA = "<iq to='juick@juick.com' id='id%d' type='get'><query xmlns='http://juick.com/query#messages' mid='%s' %s/></iq>";
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
-	PurpleConnection *connection;
+	PurpleConnection *gc;
+	PurplePluginProtocolInfo *prpl_info;
 	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
 
 	purple_debug_info(DBGID, "juick_uri_handler %s\n", proto);
@@ -207,12 +311,19 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 								account, JUICK_JID);
 			purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
-			connection = purple_conversation_get_gc(gtkconv->active_conv);
+			gc = purple_conversation_get_gc(gtkconv->active_conv);
+			prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 			if (reply[0] == '#') {
 				if (!send) {
-					reply = g_strdup_printf("%s+", body);
-					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "");
+					prpl_info->send_raw(gc, reply, strlen(reply));
 					g_free(reply);
+					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "rid='*'");
+					prpl_info->send_raw(gc, reply, strlen(reply));
+					g_free(reply);
+//					reply = g_strdup_printf("%s+", body);
+//					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+//					g_free(reply);
 					gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
 					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
@@ -221,12 +332,12 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 				if (send && g_strrstr(send, "ip")) {
 					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
 				} else if (send && send[0] == 'i'){
-					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, body, PURPLE_MESSAGE_SEND);
 				} else if (send && send[0] == 'p') {
-					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
 				} else {
-					serv_send_im(connection, JUICK_JID, body, PURPLE_MESSAGE_SEND);
-					serv_send_im(connection, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
 				}
 				g_free(reply);
 			} else 
@@ -391,8 +502,12 @@ gboolean plugin_load(PurplePlugin *plugin)
 
 	/* Jabber signals */
 	if (jabber_handle) 
+		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode", plugin,
+		                      PURPLE_CALLBACK(xmlnode_received_cb), NULL);
+		purple_signal_connect(jabber_handle, "jabber-receiving-iq", plugin,
+		                      PURPLE_CALLBACK(iq_received_cb), NULL);
 		purple_signal_connect(jabber_handle, "jabber-receiving-message", plugin,
-		                      PURPLE_CALLBACK(jabber_message_received), NULL);
+		                      PURPLE_CALLBACK(message_received_cb), NULL);
 	return TRUE;
 }
 
