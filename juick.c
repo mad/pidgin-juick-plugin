@@ -148,9 +148,9 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node, *bodyn, *tagn;
-	gchar *body = NULL, *tags = NULL, *tag = NULL, 
-	      *s = NULL, *midrid = NULL;
-	const char *uname, *mid, *rid, *mood, *ts, *from = NULL, *replies = NULL;
+	gchar *body = NULL, *bodyup = NULL, *tags = NULL, *tag = NULL, 
+	      *s = NULL, *midrid = NULL, *comment = NULL;
+	const char *uname, *mid, *rid, *mood, *ts, *from, *replies, *replyto;
 	GString *output = NULL;
 	PurpleConversation *conv;
 	PurpleMessageFlags flags;
@@ -178,6 +178,10 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			ts = xmlnode_get_attrib(node, "ts");
 			replies = xmlnode_get_attrib(node, "replies");
 			mood = xmlnode_get_attrib(node, "mood");
+			replyto = xmlnode_get_attrib(node, "replyto");
+			if (replyto) {
+
+			}
 			tagn = xmlnode_get_child(node, "tag");
 			while (tagn) {
 				tag = xmlnode_get_data(tagn);
@@ -194,19 +198,36 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 				tagn = xmlnode_get_next_twin(tagn);
 			}
 			if (tags && mood)
-				s = g_strdup_printf("%s mood: %s", tags, mood);
+				s = g_strdup_printf("%s mood: %s<br/>", tags, mood);
 			else if (tags)
-				s = g_strdup_printf("%s", tags);
+				s = g_strdup_printf("%s<br/>", tags);
 			else if (mood)
-				s = g_strdup_printf("mood: %s", mood);
+				s = g_strdup_printf("mood: %s<br/>", mood);
 			else
-				s = g_strdup_printf("%s", " ");
+				s = g_strdup_printf("<br/>");
 			g_free(tags);
 			if (rid)
 				midrid = g_strdup_printf("%s/%s", mid, rid);
 			else
 				midrid = g_strdup_printf("%s", mid);
-			g_string_append_printf(output, "%s @%s: %s<br/>%s<br/>#%s", ts, uname, s, body, midrid);
+			bodyup = xmlnode_get_data(xmlnode_get_child(*packet, "body"));
+			if (bodyup) {
+				if (replyto)
+					comment = strchr(bodyup, '>');
+				i = 0;
+				if (bodyup && bodyup[0] != '@') {
+					while (!isspace(bodyup[i]) || isblank(bodyup[i]) || bodyup[i + 1] == '>')
+						i++;
+					bodyup[i + 1] = '\0';
+				}
+			}
+			if (bodyup && i != 0 && !replyto)
+				g_string_prepend(output, bodyup);
+			g_free(bodyup);
+			if (replyto && comment)
+				g_string_append_printf(output, "%s @%s reply to %s: %s<br/>%s%s<br/>#%s", ts, uname, replyto, s, comment, body, midrid);
+			else
+				g_string_append_printf(output, "%s @%s: %s%s<br/>#%s", ts, uname, s, body, midrid);
 			g_free(s);
 			g_free(body);
 			if (first) {
@@ -224,20 +245,6 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			} else
 				g_string_append(output, "<br/>");
 			g_free(midrid);
-			body = NULL;
-			bodyn = xmlnode_get_child(*packet, "body");
-			if (bodyn) {
-				body = xmlnode_get_data(bodyn);
-				i = 0;
-				if (body && body[0] != '@') {
-					while (!isspace(body[i]) || isblank(body[i]))
-						i++;
-					body[i + 1] = '\0';
-				}
-			}
-			if (body && i != 0)
-				g_string_prepend(output, body);
-			g_free(body);
 		}
 		node = xmlnode_get_next_twin(node);
 		first = FALSE;
@@ -289,7 +296,6 @@ message_do(PurpleConnection *gc, const char *msgid, gboolean rid)
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
-//	const char *IQSTANZA = "<iq to='juick@juick.com' id='id%d' type='get'><query xmlns='http://juick.com/query#messages' mid='%s' %s/></iq>";
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
@@ -316,17 +322,6 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 				if (!send) {
 					message_do(gc, body + 1, FALSE);
 					message_do(gc, body + 1, TRUE);
-//					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "");
-//					purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", &reply);
-//					prpl_info->send_raw(gc, reply, strlen(reply));
-//					g_free(reply);
-//					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "rid='*'");
-//					purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", &reply);
-//					prpl_info->send_raw(gc, reply, strlen(reply));
-//					g_free(reply);
-//					reply = g_strdup_printf("%s+", body);
-//					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
-//					g_free(reply);
 					gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
 					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
