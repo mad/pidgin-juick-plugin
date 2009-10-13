@@ -198,13 +198,13 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 				tagn = xmlnode_get_next_twin(tagn);
 			}
 			if (tags && mood)
-				s = g_strdup_printf("%s mood: %s<br/>", tags, mood);
+				s = g_strdup_printf("%s mood: %s", tags, mood);
 			else if (tags)
-				s = g_strdup_printf("%s<br/>", tags);
+				s = g_strdup_printf("%s", tags);
 			else if (mood)
-				s = g_strdup_printf("mood: %s<br/>", mood);
+				s = g_strdup_printf("mood: %s", mood);
 			else
-				s = g_strdup_printf("<br/>");
+				s = g_strdup_printf(" ");
 			g_free(tags);
 			if (rid)
 				midrid = g_strdup_printf("%s/%s", mid, rid);
@@ -225,9 +225,9 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 				g_string_prepend(output, bodyup);
 			g_free(bodyup);
 			if (replyto && comment)
-				g_string_append_printf(output, "%s @%s reply to %s: %s<br/>%s%s<br/>#%s", ts, uname, replyto, s, comment, body, midrid);
+				g_string_append_printf(output, "%s @%s: reply to %s %s<br/>%s%s<br/>#%s", ts, uname, replyto, s, comment, body, midrid);
 			else
-				g_string_append_printf(output, "%s @%s: %s%s<br/>#%s", ts, uname, s, body, midrid);
+				g_string_append_printf(output, "%s @%s: %s<br/>%s<br/>#%s", ts, uname, s, body, midrid);
 			g_free(s);
 			g_free(body);
 			if (first) {
