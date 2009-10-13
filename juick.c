@@ -39,6 +39,8 @@
 #define DBGID "juick"
 #define JUICK_JID "juick@juick.com"
 #define JUBO_JID "jubo@nologin.ru"
+#define NS_JUICK_MESSAGE "http://juick.com/query#messages"
+
 #define PREF_PREFIX "/plugins/core/juick-plugin"
 #define PREF_USE_AVATAR PREF_PREFIX "/avatar-p"
 #define PREF_USE_ID_PLUS PREF_PREFIX "/id_plus"
@@ -143,15 +145,6 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 }
 
-gboolean iq_received_cb(PurpleConnection *gc, const char *type, const char *id,
-                                              const char *from, xmlnode *iq)
-{
-	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
-
-	/* We don't want the plugin to stop processing */
-	return FALSE;
-}
-
 void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node, *bodyn, *tagn;
@@ -218,7 +211,7 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			g_free(body);
 			if (first) {
 				i = 0;
-				while (midrid) {
+				while (midrid[i]) {
 					if (midrid[i] == '/') {
 						midrid[i] = '#';
 						break;
@@ -270,20 +263,33 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	}
 }
 
-gboolean message_received_cb(PurpleConnection *gc, const char *type,
-                              const char *id, const char *from, const char *to,
-                              xmlnode *message)
+static void
+message_do(PurpleConnection *gc, const char *msgid, gboolean rid)
 {
-	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+	xmlnode *iq, *query;
 
-	/* We don't want the plugin to stop processing */
-	return FALSE;
+	iq = xmlnode_new("iq");
+	xmlnode_set_attrib(iq, "type", "get");
+	xmlnode_set_attrib(iq, "to", JUICK_JID);
+	xmlnode_set_attrib(iq, "id", "123");
+
+	query = xmlnode_new_child(iq, "query");
+	xmlnode_set_namespace(query, NS_JUICK_MESSAGE);
+	if (msgid) {
+		xmlnode_set_attrib(query, "mid", msgid);
+		if (rid)
+			xmlnode_set_attrib(query, "rid", "*");
+	}
+
+	purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", gc, &iq);
+	if (iq != NULL)
+		xmlnode_free(iq);
 }
 
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
-	const char *IQSTANZA = "<iq to='juick@juick.com' id='id%d' type='get'><query xmlns='http://juick.com/query#messages' mid='%s' %s/></iq>";
+//	const char *IQSTANZA = "<iq to='juick@juick.com' id='id%d' type='get'><query xmlns='http://juick.com/query#messages' mid='%s' %s/></iq>";
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
@@ -308,12 +314,16 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 			if (reply[0] == '#') {
 				if (!send) {
-					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "");
-					prpl_info->send_raw(gc, reply, strlen(reply));
-					g_free(reply);
-					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "rid='*'");
-					prpl_info->send_raw(gc, reply, strlen(reply));
-					g_free(reply);
+					message_do(gc, body + 1, FALSE);
+					message_do(gc, body + 1, TRUE);
+//					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "");
+//					purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", &reply);
+//					prpl_info->send_raw(gc, reply, strlen(reply));
+//					g_free(reply);
+//					reply = g_strdup_printf(IQSTANZA, 123, body + 1, "rid='*'");
+//					purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", &reply);
+//					prpl_info->send_raw(gc, reply, strlen(reply));
+//					g_free(reply);
 //					reply = g_strdup_printf("%s+", body);
 //					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
 //					g_free(reply);
@@ -497,10 +507,6 @@ gboolean plugin_load(PurplePlugin *plugin)
 	if (jabber_handle) 
 		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode", plugin,
 		                      PURPLE_CALLBACK(xmlnode_received_cb), NULL);
-		purple_signal_connect(jabber_handle, "jabber-receiving-iq", plugin,
-		                      PURPLE_CALLBACK(iq_received_cb), NULL);
-		purple_signal_connect(jabber_handle, "jabber-receiving-message", plugin,
-		                      PURPLE_CALLBACK(message_received_cb), NULL);
 	return TRUE;
 }
 
