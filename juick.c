@@ -86,7 +86,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			i++;
 			j = i;
 			if (prev_char == '@') {
-				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-'|| src[j] == '@' || src[j] == '.')) 
+				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-'|| src[j] == '@' || src[j] == '.' || src[j] == '_')) 
 					j++;
 			} else if (prev_char == '#') {
 				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/') ) {
