@@ -147,10 +147,12 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 static char *date_reformat(const char *field)
 {
-	char *tmp = g_strdup(field);
+	gchar *tmp = g_strdup(field);
+	purple_util_chrreplace(tmp, ' ', 'T');
+	gchar *tmp1 = g_strdup_printf("%sZ", tmp);
 	time_t t = purple_str_to_time(tmp, TRUE, NULL, NULL, NULL);
 
-	g_free(tmp);
+	g_free(tmp); g_free(tmp1);
 	return g_strdup(purple_date_format_long(localtime(&t)));
 }
 
@@ -235,12 +237,12 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 				}
 				if (bodyup && i != 0 && !replyto)
 					g_string_prepend(output, bodyup);
-				g_free(bodyup);
 			}
 			if (replyto && comment)
 				g_string_append_printf(output, "%s @%s: reply to %s %s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
 			else
 				g_string_append_printf(output, "%s @%s: %s<br/>%s <br/>#%s", ts_, uname, s, body, midrid);
+			g_free(bodyup);
 			g_free(ts_);
 			g_free(s);
 			g_free(body);
