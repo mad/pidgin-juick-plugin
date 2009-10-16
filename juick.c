@@ -53,6 +53,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
+	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick tags not placing due to reach their maximum count: %d\n</font>";
 	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 92;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -76,7 +77,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			tag_count++;
 		if (tag_count > tag_max) {
 			msgid = purple_markup_strip_html(&src[i]);
-			g_string_append_printf(output, "%s", msgid);
+			g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
+			g_string_append(output, msgid);
 			free(msgid);
 			break;			
 		}
@@ -156,16 +158,100 @@ static char *date_reformat(const char *field)
 	return g_strdup(purple_date_format_long(localtime(&t)));
 }
 
-void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
+void body_reformat(GString *output, xmlnode *node, gboolean first)
 {
-	xmlnode *node, *bodyn, *bodyupn, *tagn;
+	xmlnode *bodyn, *bodyupn, *tagn;
+	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
 	gchar *body = NULL, *bodyup = NULL, *tags = NULL, *tag = NULL, 
 	      *s = NULL, *midrid = NULL, *comment = NULL, *ts_ = NULL;
-	const char *uname, *mid, *rid, *mood, *ts, *from, *replies, *replyto;
+	int i = 0;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	g_return_if_fail(node != NULL);
+	g_return_if_fail(output != NULL);
+
+	bodyn = xmlnode_get_child(node, "body");
+	body = xmlnode_get_data_unescaped(bodyn);
+	uname = xmlnode_get_attrib(node, "uname");
+	mid = xmlnode_get_attrib(node, "mid");
+	rid = xmlnode_get_attrib(node, "rid");
+	ts = xmlnode_get_attrib(node, "ts");
+	ts_ = date_reformat(ts);
+	replies = xmlnode_get_attrib(node, "replies");
+	mood = xmlnode_get_attrib(node, "mood");
+	replyto = xmlnode_get_attrib(node, "replyto");
+	tagn = xmlnode_get_child(node, "tag");
+	while (tagn) {
+		tag = xmlnode_get_data(tagn);
+		if (tag) {
+			if (tags) {
+				s = g_strdup_printf("%s *%s", tags, tag);
+				g_free(tags);
+				tags = s;
+			} else {
+				tags = g_strdup_printf("*%s", tag);
+			}
+		}
+		g_free(tag);
+		tagn = xmlnode_get_next_twin(tagn);
+	}
+	if (tags && mood)
+		s = g_strdup_printf("%s mood: %s", tags, mood);
+	else if (tags)
+		s = g_strdup_printf("%s", tags);
+	else if (mood)
+		s = g_strdup_printf("mood: %s", mood);
+	else
+		s = g_strdup_printf(" ");
+	g_free(tags);
+	if (rid)
+		midrid = g_strdup_printf("%s/%s", mid, rid);
+	else
+		midrid = g_strdup_printf("%s", mid);
+	bodyupn = xmlnode_get_parent(node);
+	if (bodyupn && strcmp(bodyupn->name, "body") == 0) {
+		bodyup = xmlnode_get_data(bodyupn);
+		if (bodyup) {
+			if (replyto)
+				comment = strchr(bodyup, '>');
+			i = 0;
+			if (bodyup && bodyup[0] != '@') {
+				while (!isspace(bodyup[i]) || isblank(bodyup[i]) || bodyup[i + 1] == '>')
+					i++;
+				bodyup[i + 1] = '\0';
+			}
+		}
+		if (bodyup && i != 0 && !replyto)
+			g_string_prepend(output, bodyup);
+	}
+	if (replyto && comment)
+		g_string_append_printf(output, "%s @%s: reply to %s %s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
+	else
+		g_string_append_printf(output, "%s @%s: %s<br/>%s <br/>#%s", ts_, uname, s, body, midrid);
+	g_free(bodyup);
+	g_free(ts_);
+	g_free(s);
+	g_free(body);
+	if (first) {
+		if (midrid != NULL)
+			purple_util_chrreplace(midrid, '/', '#');
+		g_string_append_printf(output, " http://juick.com/%s<br/>", midrid);
+		if (replies)
+			g_string_append_printf(output, "Replies (%s)<br/>", replies);
+	} else
+		g_string_append(output, "<br/>");
+	g_free(midrid);
+}
+
+void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
+{
+	xmlnode *node;
+	const char *from, *next;
+	gchar *s = NULL;
 	GString *output = NULL;
 	PurpleConversation *conv;
 	PurpleMessageFlags flags;
-	int i = 0;
 	gboolean first = TRUE;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -180,91 +266,23 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 
 	output = g_string_new("");
 	while (node) {
-		bodyn = xmlnode_get_child(node, "body");
-		if (bodyn) {
-			body = xmlnode_get_data_unescaped(bodyn);
-			uname = xmlnode_get_attrib(node, "uname");
-			mid = xmlnode_get_attrib(node, "mid");
-			rid = xmlnode_get_attrib(node, "rid");
-			ts = xmlnode_get_attrib(node, "ts");
-			ts_ = date_reformat(ts);
-			replies = xmlnode_get_attrib(node, "replies");
-			mood = xmlnode_get_attrib(node, "mood");
-			replyto = xmlnode_get_attrib(node, "replyto");
-			if (replyto) {
-
-			}
-			tagn = xmlnode_get_child(node, "tag");
-			while (tagn) {
-				tag = xmlnode_get_data(tagn);
-				if (tag) {
-					if (tags) {
-						s = g_strdup_printf("%s *%s", tags, tag);
-						g_free(tags);
-						tags = s;
-					} else {
-						tags = g_strdup_printf("*%s", tag);
-					}
-				}
-				g_free(tag);
-				tagn = xmlnode_get_next_twin(tagn);
-			}
-			if (tags && mood)
-				s = g_strdup_printf("%s mood: %s", tags, mood);
-			else if (tags)
-				s = g_strdup_printf("%s", tags);
-			else if (mood)
-				s = g_strdup_printf("mood: %s", mood);
-			else
-				s = g_strdup_printf(" ");
-			g_free(tags);
-			if (rid)
-				midrid = g_strdup_printf("%s/%s", mid, rid);
-			else
-				midrid = g_strdup_printf("%s", mid);
-			bodyupn = xmlnode_get_child(*packet, "body");
-			if (bodyupn) {
-				bodyup = xmlnode_get_data(bodyupn);
-				if (bodyup) {
-					if (replyto)
-						comment = strchr(bodyup, '>');
-					i = 0;
-					if (bodyup && bodyup[0] != '@') {
-						while (!isspace(bodyup[i]) || isblank(bodyup[i]) || bodyup[i + 1] == '>')
-							i++;
-						bodyup[i + 1] = '\0';
-					}
-				}
-				if (bodyup && i != 0 && !replyto)
-					g_string_prepend(output, bodyup);
-			}
-			if (replyto && comment)
-				g_string_append_printf(output, "%s @%s: reply to %s %s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
-			else
-				g_string_append_printf(output, "%s @%s: %s<br/>%s <br/>#%s", ts_, uname, s, body, midrid);
-			g_free(bodyup);
-			g_free(ts_);
-			g_free(s);
-			g_free(body);
-			if (first) {
-				purple_util_chrreplace(midrid, '/', '#');
-				g_string_append_printf(output, " http://juick.com/%s<br/>", midrid);
-				if (replies)
-					g_string_append_printf(output, "Replies (%s)<br/>", replies);
-			} else
-				g_string_append(output, "<br/>");
-			g_free(midrid);
+		if (first) {
+			next = xmlnode_get_attrib(node, "rid");
+			if (next && strcmp(next, "1"))
+				g_string_append(output, "Continuation of the previous replies<br/>");
 		}
+		body_reformat(output, node, first);
 		node = xmlnode_get_next_twin(node);
 		first = FALSE;
 	}
 	flags = PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY;
 	if (output->len != 0) {
 		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
-		body = g_string_free(output, FALSE);
+		s = g_string_free(output, FALSE);
+		// TODO: Make sound
 //		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
-		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, body, flags, time(NULL));
-//		g_free(body); // need?
+		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags, time(NULL));
+//		g_free(s); // need?
 		xmlnode_free(*packet);
 		*packet = NULL;
 	} else {
@@ -272,9 +290,9 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from && ((strcmp(from, JUICK_JID) == 0) || (strcmp(from, JUBO_JID) == 0))) {
 			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
-			body = g_strdup_printf("error %s", xmlnode_get_attrib(node, "code"));
-			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, body, flags, time(NULL));
-//			g_free(body); // need?
+			s = g_strdup_printf("error %s", xmlnode_get_attrib(node, "code"));
+			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags, time(NULL));
+//			g_free(s); // need?
 		}
 	}
 }
