@@ -45,6 +45,28 @@
 #define PREF_USE_AVATAR PREF_PREFIX "/avatar-p"
 #define PREF_USE_ID_PLUS PREF_PREFIX "/id_plus"
 
+static void
+add_warning_message(GString *output, gchar *src, int tag_max)
+{
+	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick tags are not placing due to reach their maximum count: %d in the one message\n</font>";
+	gchar *s, *s1;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	s = purple_markup_strip_html(src);
+	s1 = strchr(s, '\n');
+	if (s) {
+		s1 += 1;
+		g_string_append_len(output, s, s1 - s);
+		g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
+		g_string_append(output, s1);
+	} else {
+		g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
+		g_string_append(output, s);
+	}
+	free(s);
+}
+
 static gboolean
 juick_on_displaying(PurpleAccount *account, const char *who,
 	   char **displaying, PurpleConversation *conv,
@@ -53,7 +75,6 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
-	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick tags not placing due to reach their maximum count: %d\n</font>";
 	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 92;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -76,10 +97,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		if (src[i] == '<')
 			tag_count++;
 		if (tag_count > tag_max) {
-			msgid = purple_markup_strip_html(&src[i]);
-			g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
-			g_string_append(output, msgid);
-			free(msgid);
+			add_warning_message(output, &src[i], tag_max);
 			break;			
 		}
 		if( (i == 0 || isspace(prev_char) || prev_char == '>' || prev_char == '(') && (src[i] == '@' || src[i] == '#') )
@@ -143,6 +161,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	}
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
+	purple_debug_info(DBGID, "%s\n", (*displaying));
 	return FALSE;
 
 }
@@ -160,7 +179,7 @@ static char *date_reformat(const char *field)
 
 void body_reformat(GString *output, xmlnode *node, gboolean first)
 {
-	xmlnode *bodyn, *bodyupn, *tagn;
+	xmlnode *n, *bodyupn = NULL, *tagn;
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
 	gchar *body = NULL, *bodyup = NULL, *tags = NULL, *tag = NULL, 
 	      *s = NULL, *midrid = NULL, *comment = NULL, *ts_ = NULL;
@@ -171,8 +190,8 @@ void body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_return_if_fail(node != NULL);
 	g_return_if_fail(output != NULL);
 
-	bodyn = xmlnode_get_child(node, "body");
-	body = xmlnode_get_data_unescaped(bodyn);
+	n = xmlnode_get_child(node, "body");
+	body = xmlnode_get_data_unescaped(n);
 	uname = xmlnode_get_attrib(node, "uname");
 	mid = xmlnode_get_attrib(node, "mid");
 	rid = xmlnode_get_attrib(node, "rid");
@@ -209,8 +228,10 @@ void body_reformat(GString *output, xmlnode *node, gboolean first)
 		midrid = g_strdup_printf("%s/%s", mid, rid);
 	else
 		midrid = g_strdup_printf("%s", mid);
-	bodyupn = xmlnode_get_parent(node);
-	if (bodyupn && strcmp(bodyupn->name, "body") == 0) {
+	n = xmlnode_get_parent(node);
+	if (n)
+		bodyupn = xmlnode_get_child(n, "body");
+	if (bodyupn) {
 		bodyup = xmlnode_get_data(bodyupn);
 		if (bodyup) {
 			if (replyto)
@@ -239,6 +260,8 @@ void body_reformat(GString *output, xmlnode *node, gboolean first)
 		g_string_append_printf(output, " http://juick.com/%s<br/>", midrid);
 		if (replies)
 			g_string_append_printf(output, "Replies (%s)<br/>", replies);
+		if (rid && strcmp(rid, "1") && !replyto)
+			g_string_prepend(output, "Continuation of the previous replies<br/>");
 	} else
 		g_string_append(output, "<br/>");
 	g_free(midrid);
@@ -247,7 +270,7 @@ void body_reformat(GString *output, xmlnode *node, gboolean first)
 void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node;
-	const char *from, *next;
+	const char *from;
 	gchar *s = NULL;
 	GString *output = NULL;
 	PurpleConversation *conv;
@@ -266,11 +289,6 @@ void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 
 	output = g_string_new("");
 	while (node) {
-		if (first) {
-			next = xmlnode_get_attrib(node, "rid");
-			if (next && strcmp(next, "1"))
-				g_string_append(output, "Continuation of the previous replies<br/>");
-		}
 		body_reformat(output, node, first);
 		node = xmlnode_get_next_twin(node);
 		first = FALSE;
