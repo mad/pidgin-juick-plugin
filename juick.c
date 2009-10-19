@@ -227,7 +227,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	else if (mood)
 		s = g_strdup_printf(" mood: %s", mood);
 	else
-		// TODO: how to do empty string?
+		// FIXME: how to do empty string?
 		s = g_strdup_printf("%c", '\0');
 	g_free(tags);
 	if (rid)
