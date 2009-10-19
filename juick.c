@@ -166,18 +166,23 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 }
 
-static char *date_reformat(const char *field)
+static char
+*date_reformat(const char *field)
 {
-	gchar *tmp = g_strdup(field);
+	gchar *tmp, *tmp1;
+	time_t t;
+
+	tmp = g_strdup(field);
 	purple_util_chrreplace(tmp, ' ', 'T');
-	gchar *tmp1 = g_strdup_printf("%sZ", tmp);
-	time_t t = purple_str_to_time(tmp, TRUE, NULL, NULL, NULL);
+	tmp1 = g_strdup_printf("%sZ", tmp);
+	t = purple_str_to_time(tmp, TRUE, NULL, NULL, NULL);
 
 	g_free(tmp); g_free(tmp1);
 	return g_strdup(purple_date_format_long(localtime(&t)));
 }
 
-void body_reformat(GString *output, xmlnode *node, gboolean first)
+static void
+body_reformat(GString *output, xmlnode *node, gboolean first)
 {
 	xmlnode *n, *bodyupn = NULL, *tagn;
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
@@ -267,7 +272,8 @@ void body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(midrid);
 }
 
-void xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
+static void
+xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node;
 	const char *from;
@@ -393,7 +399,8 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 }
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
-static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
+static gboolean
+juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 
@@ -405,7 +412,8 @@ static gboolean juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
         return TRUE;
 }
 
-void menu_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+static void
+menu_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 
@@ -414,7 +422,8 @@ void menu_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
         purple_got_protocol_handler_uri(url);
 }
 
-void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+static void
+menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
@@ -426,7 +435,8 @@ void menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 	g_free(murl);
 }
 
-void menu_user_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+static void
+menu_user_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
@@ -438,7 +448,8 @@ void menu_user_info_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 	g_free(murl);
 }
 
-void menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+static void
+menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
         const gchar * url = gtk_imhtml_link_get_url(link);
 	gchar *murl = NULL;
@@ -450,7 +461,8 @@ void menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 	g_free(murl);
 }
 
-static gboolean juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, 
+static gboolean
+juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, 
                                                            GtkWidget * menu)
 {
 	GtkWidget *item, *img;
@@ -505,7 +517,8 @@ static void *juick_notify_uri(const char *uri) {
 }
 #endif
 
-static PurplePluginPrefFrame * get_plugin_pref_frame(PurplePlugin *plugin)
+static PurplePluginPrefFrame*
+get_plugin_pref_frame(PurplePlugin *plugin)
 {
         PurplePluginPrefFrame *frame;
         PurplePluginPref *ppref;
@@ -523,7 +536,8 @@ static PurplePluginPrefFrame * get_plugin_pref_frame(PurplePlugin *plugin)
 	return frame;	
 }
 
-gboolean plugin_load(PurplePlugin *plugin)
+static gboolean
+plugin_load(PurplePlugin *plugin)
 {
 
 	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
@@ -550,7 +564,8 @@ gboolean plugin_load(PurplePlugin *plugin)
 	return TRUE;
 }
 
-gboolean plugin_unload(PurplePlugin *plugin)
+static gboolean
+plugin_unload(PurplePlugin *plugin)
 {
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", NULL, NULL);
