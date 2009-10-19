@@ -221,13 +221,14 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		tagn = xmlnode_get_next_twin(tagn);
 	}
 	if (tags && mood)
-		s = g_strdup_printf("%s mood: %s", tags, mood);
+		s = g_strdup_printf(" %s mood: %s", tags, mood);
 	else if (tags)
-		s = g_strdup_printf("%s", tags);
+		s = g_strdup_printf(" %s", tags);
 	else if (mood)
-		s = g_strdup_printf("mood: %s", mood);
+		s = g_strdup_printf(" mood: %s", mood);
 	else
-		s = g_strdup_printf(" ");
+		// TODO: how to do empty string?
+		s = g_strdup_printf("%c", '\0');
 	g_free(tags);
 	if (rid)
 		midrid = g_strdup_printf("%s/%s", mid, rid);
@@ -252,9 +253,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			g_string_prepend(output, bodyup);
 	}
 	if (replyto && comment)
-		g_string_append_printf(output, "%s @%s: reply to %s %s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
+		g_string_append_printf(output, "%s @%s: reply to %s%s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
 	else
-		g_string_append_printf(output, "%s @%s: %s<br/>%s <br/>#%s", ts_, uname, s, body, midrid);
+		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s", ts_, uname, s, body, midrid);
 	g_free(bodyup);
 	g_free(ts_);
 	g_free(s);
