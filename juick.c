@@ -45,6 +45,7 @@
 
 #define PREF_PREFIX "/plugins/core/juick-plugin"
 #define PREF_IS_GREY_TAGS PREF_PREFIX "/is_grey_tags"
+#define PREF_IS_SHOW_MAX_MESSAGE PREF_PREFIX "/is_show_max_message"
 
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
@@ -53,6 +54,8 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 		"tags are not placing due to reach their maximum count: %d " \
 		"in the one message\n</font>";
 	gchar *s, *s1;
+	gboolean is_show_max_message = purple_prefs_get_bool(
+						PREF_IS_SHOW_MAX_MESSAGE);
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -61,10 +64,14 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 	if (s) {
 		s1 += 1;
 		g_string_append_len(output, s, s1 - s);
-		g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
+		if (is_show_max_message)
+			g_string_append_printf(output,
+					MORETAGSNOTPLACING, tag_max);
 		g_string_append(output, s1);
 	} else {
-		g_string_append_printf(output, MORETAGSNOTPLACING, tag_max);
+		if (is_show_max_message)
+			g_string_append_printf(output,
+					MORETAGSNOTPLACING, tag_max);
 		g_string_append(output, s);
 	}
 	free(s);
@@ -572,6 +579,10 @@ get_plugin_pref_frame(PurplePlugin *plugin)
         ppref = purple_plugin_pref_new_with_name_and_label(PREF_IS_GREY_TAGS, 
                                             ("Greyed out tags in the message"));
         purple_plugin_pref_frame_add(frame, ppref);
+        ppref = purple_plugin_pref_new_with_name_and_label(
+						PREF_IS_SHOW_MAX_MESSAGE,
+                                            ("Show max warning message"));
+        purple_plugin_pref_frame_add(frame, ppref);
 
 	return frame;	
 }
@@ -678,6 +689,7 @@ init_plugin(PurplePlugin *plugin)
 {
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_GREY_TAGS, FALSE);
+	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
