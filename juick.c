@@ -15,8 +15,10 @@
  * Floor, Boston, MA 02110-1301, USA.
  */
 
+#if 0
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
 #endif
 
 #include <ctype.h>
@@ -47,7 +49,9 @@
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
 {
-	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick tags are not placing due to reach their maximum count: %d in the one message\n</font>";
+	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick " \
+		"tags are not placing due to reach their maximum count: %d " \
+		"in the one message\n</font>";
 	gchar *s, *s1;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -93,23 +97,26 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	// now search message text and look for things to highlight
 	prev_char = src[i];
 	while(src[i] != '\0') {
-		//purple_debug_info(DBGID, "prev_char = %c, src[i] == %c\n", prev_char, src[i]);
 		if (src[i] == '<')
 			tag_count++;
 		if (tag_count > tag_max) {
 			add_warning_message(output, &src[i], tag_max);
 			break;			
 		}
-		if( (i == 0 || isspace(prev_char) || prev_char == '>' || prev_char == '(') && (src[i] == '@' || src[i] == '#') )
+		if( (i == 0 || isspace(prev_char) || prev_char == '>' ||
+			prev_char == '(') && (src[i] == '@' || src[i] == '#') )
 		{
 			prev_char = src[i];
 			i++;
 			j = i;
 			if (prev_char == '@') {
-				while ( (src[j] != '\0') && (isalnum(src[j]) || src[j] == '-'|| src[j] == '@' || src[j] == '.' || src[j] == '_')) 
+				while ( (src[j] != '\0') && (isalnum(src[j]) ||
+				 	      src[j] == '-' || src[j] == '@' ||
+					      src[j] == '.' || src[j] == '_')) 
 					j++;
 			} else if (prev_char == '#') {
-				while ( (src[j] != '\0') && (isdigit(src[j]) || src[j] == '/') ) {
+				while ( (src[j] != '\0') && (isdigit(src[j]) ||
+					 		     src[j] == '/') ) {
 					if (src[j] == '/') 
 						prev_char = '#';
 					j++;
@@ -132,9 +139,11 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			i = j;
 			prev_char = src[i - 1];
 			continue;
-		} else if (ai == 2 && is_grey_tags && isspace(prev_char) && src[i] == '*') {
+		} else if (ai == 2 && is_grey_tags && isspace(prev_char) &&
+							   src[i] == '*') {
 			j = i;
-			while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
+			while (src[j] != '\0' && isspace(prev_char) &&
+						      src[j] == '*') {
 				j++;
 				while (!isspace(src[j]) && src[j] != '<')
 					j++;
@@ -146,7 +155,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			old_char = src[j];
 			src[j] = '\0';
 			msgid = &src[i - 1];
-			g_string_append_printf(output, "<font color=\"grey\">%s</font>", msgid);
+			g_string_append_printf(output,
+				"<font color=\"grey\">%s</font>", msgid);
 			tag_count++; tag_count++;
 			src[j] = old_char;
 			i = j;
@@ -204,6 +214,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	mood = xmlnode_get_attrib(node, "mood");
 	replyto = xmlnode_get_attrib(node, "replyto");
 	tagn = xmlnode_get_child(node, "tag");
+	purple_debug_info(DBGID, "Make tags\n");
 	while (tagn) {
 		tag = xmlnode_get_data(tagn);
 		if (tag) {
@@ -218,6 +229,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		g_free(tag);
 		tagn = xmlnode_get_next_twin(tagn);
 	}
+	purple_debug_info(DBGID, "Join tags and mood\n");
 	if (tags && mood)
 		s = g_strdup_printf(" %s mood: %s", tags, mood);
 	else if (tags)
@@ -235,37 +247,47 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	n = xmlnode_get_parent(node);
 	if (n)
 		bodyupn = xmlnode_get_child(n, "body");
+	purple_debug_info(DBGID, "Make comment and extra information\n");
 	if (bodyupn) {
 		bodyup = xmlnode_get_data(bodyupn);
-		if (bodyup) {
-			if (replyto)
-				comment = strchr(bodyup, '>');
-			i = 0;
-			if (bodyup && bodyup[0] != '@') {
-				while (!isspace(bodyup[i]) || isblank(bodyup[i]) || bodyup[i + 1] == '>')
-					i++;
-				bodyup[i + 1] = '\0';
-			}
+		if (bodyup && replyto)
+			comment = strchr(bodyup, '>');
+		i = 0;
+		purple_debug_info(DBGID, "asdf0\n");
+		if (bodyup && bodyup[0] != '@') {
+			while (bodyup[i] != '\0' && (!isspace(bodyup[i]) || 
+						      isblank(bodyup[i])))
+				i++;
+			bodyup[i + 1] = '\0';
 		}
+		purple_debug_info(DBGID, "asdf1\n");
 		if (bodyup && i != 0 && !replyto)
 			g_string_prepend(output, bodyup);
 	}
+	purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
-		g_string_append_printf(output, "%s @%s: reply to %s%s<br/>%s%s<br/>#%s", ts_, uname, replyto, s, comment, body, midrid);
+		g_string_append_printf(output,
+			"%s @%s: reply to %s%s<br/>%s%s<br/>#%s",
+			ts_, uname, replyto, s, comment, body, midrid);
 	else
-		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s", ts_, uname, s, body, midrid);
+		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s",
+					     ts_, uname, s, body, midrid);
 	g_free(bodyup);
 	g_free(ts_);
 	g_free(s);
 	g_free(body);
+	purple_debug_info(DBGID, "Add prefix or suffix of the message\n");
 	if (first) {
 		if (midrid != NULL)
 			purple_util_chrreplace(midrid, '/', '#');
-		g_string_append_printf(output, " http://juick.com/%s<br/>", midrid);
+		g_string_append_printf(output, " http://juick.com/%s<br/>",
+								   midrid);
 		if (replies)
-			g_string_append_printf(output, "Replies (%s)<br/>", replies);
+			g_string_append_printf(output, "Replies (%s)<br/>",
+								  replies);
 		if (rid && strcmp(rid, "1") && !replyto)
-			g_string_prepend(output, "Continuation of the previous replies<br/>");
+			g_string_prepend(output, 
+				"Continuation of the previous replies<br/>");
 	} else
 		g_string_append(output, "<br/>");
 	g_free(midrid);
@@ -300,22 +322,29 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	}
 	flags = PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY;
 	if (output->len != 0) {
-		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
+		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account,
+									  from);
 		s = g_string_free(output, FALSE);
 		// TODO: Make sound
 //		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
-		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags, time(NULL));
-//		g_free(s); // need?
+		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags,
+								    time(NULL));
+		//g_free(s); // need?
 		xmlnode_free(*packet);
 		*packet = NULL;
 	} else {
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
-		if (node && from && ((strcmp(from, JUICK_JID) == 0) || (strcmp(from, JUBO_JID) == 0))) {
-			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account, from);
-			s = g_strdup_printf("error %s", xmlnode_get_attrib(node, "code"));
-			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags, time(NULL));
-//			g_free(s); // need?
+		if (node && from && 
+			((strcmp(from, JUICK_JID) == 0) ||
+			 (strcmp(from, JUBO_JID) == 0))) {
+			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM,
+							gc->account, from);
+			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
+								       "code"));
+			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name,
+							  s, flags, time(NULL));
+			//g_free(s); // need?
 		}
 	}
 }
@@ -338,7 +367,8 @@ send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
 			xmlnode_set_attrib(query, "rid", "*");
 	}
 
-	purple_signal_emit(purple_connection_get_prpl(gc), "jabber-sending-xmlnode", gc, &iq);
+	purple_signal_emit(purple_connection_get_prpl(gc),
+		"jabber-sending-xmlnode", gc, &iq);
 	if (iq != NULL)
 		xmlnode_free(iq);
 }
@@ -350,7 +380,6 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
 	PurpleConnection *gc;
-	PurplePluginProtocolInfo *prpl_info;
 	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
 
 	purple_debug_info(DBGID, "juick_uri_handler %s\n", proto);
@@ -363,33 +392,42 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		account = purple_accounts_find(account_user, "prpl-jabber");
 		if (body && account) {
 			conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, 
-								account, JUICK_JID);
+							account, JUICK_JID);
 			purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
 			gc = purple_conversation_get_gc(gtkconv->active_conv);
-			prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 			if (reply[0] == '#') {
 				if (!send) {
-					send_juick_messages_iq(gc, body + 1, FALSE);
-					send_juick_messages_iq(gc, body + 1, TRUE);
-					gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
+					send_juick_messages_iq(gc, body + 1,
+									FALSE);
+					send_juick_messages_iq(gc, body + 1,
+									TRUE);
+					gtk_text_buffer_set_text(
+					    gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
-					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+					gtk_text_buffer_insert_at_cursor(
+					    gtkconv->entry_buffer, body, -1);
 			} else if (reply[0] == '@') {
 				reply = g_strdup_printf("%s+", body);
 				if (send && g_strrstr(send, "ip")) {
-					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+					gtk_text_buffer_insert_at_cursor(
+					    gtkconv->entry_buffer, body, -1);
 				} else if (send && send[0] == 'i'){
-					serv_send_im(gc, JUICK_JID, body, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, body,
+							PURPLE_MESSAGE_SEND);
 				} else if (send && send[0] == 'p') {
-					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, reply,
+							PURPLE_MESSAGE_SEND);
 				} else {
-					serv_send_im(gc, JUICK_JID, body, PURPLE_MESSAGE_SEND);
-					serv_send_im(gc, JUICK_JID, reply, PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, body,
+							PURPLE_MESSAGE_SEND);
+					serv_send_im(gc, JUICK_JID, reply,
+							PURPLE_MESSAGE_SEND);
 				}
 				g_free(reply);
 			} else 
-				gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
+				gtk_text_buffer_insert_at_cursor(
+					    gtkconv->entry_buffer, body, -1);
 			gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 			return TRUE;
 		}
@@ -461,8 +499,7 @@ menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 }
 
 static gboolean
-juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, 
-                                                           GtkWidget * menu)
+juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 {
 	GtkWidget *item, *img;
         const gchar *url = gtk_imhtml_link_get_url(link);
@@ -471,27 +508,34 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link,
 
 	img = gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_MENU);
 	if (g_strrstr(url, "&reply=@")) {
-		item = gtk_image_menu_item_new_with_mnemonic("See _user info and posts");
+		item = gtk_image_menu_item_new_with_mnemonic(
+						"See _user info and posts");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("_Insert");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_insert_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_insert_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See user _info");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_info_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_user_info_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See user _posts");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_user_posts_activate_cb), link);
 	} else if (g_strrstr(url, "&reply=#")) {
 		item = gtk_image_menu_item_new_with_mnemonic("See _replies");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), img);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("_Insert");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(menu_user_posts_activate_cb), link);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_user_posts_activate_cb), link);
 	} else {
 		return FALSE;
 	}
@@ -525,7 +569,7 @@ get_plugin_pref_frame(PurplePlugin *plugin)
         frame = purple_plugin_pref_frame_new();
 
         ppref = purple_plugin_pref_new_with_name_and_label(PREF_IS_GREY_TAGS, 
-                                               ("Greyed out tags in the message"));
+                                            ("Greyed out tags in the message"));
         purple_plugin_pref_frame_add(frame, ppref);
 
 	return frame;	
@@ -549,13 +593,16 @@ plugin_load(PurplePlugin *plugin)
 	purple_signal_connect(purple_get_core(), "uri-handler", plugin, 
                              PURPLE_CALLBACK(juick_uri_handler), NULL);
 
-	purple_signal_connect(pidgin_conversations_get_handle(), 
-"displaying-im-msg", plugin, PURPLE_CALLBACK(juick_on_displaying), NULL);
+	purple_signal_connect(pidgin_conversations_get_handle(),
+				"displaying-im-msg", plugin,
+				PURPLE_CALLBACK(juick_on_displaying), NULL);
 
 	/* Jabber signals */
 	if (jabber_handle) 
-		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode", plugin,
-		                      PURPLE_CALLBACK(xmlnode_received_cb), NULL);
+		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode",
+					plugin,
+					PURPLE_CALLBACK(xmlnode_received_cb),
+					NULL);
 	return TRUE;
 }
 
@@ -572,7 +619,8 @@ plugin_unload(PurplePlugin *plugin)
                                       PURPLE_CALLBACK(juick_uri_handler));
 
 	purple_signal_disconnect(purple_conversations_get_handle(), 
-"displaying-im-msg", plugin, PURPLE_CALLBACK(juick_on_displaying));
+					"displaying-im-msg", plugin,
+					PURPLE_CALLBACK(juick_on_displaying));
 
 	return TRUE;
 }
@@ -592,29 +640,32 @@ static PurplePluginUiInfo prefs_info =
 static PurplePluginInfo info =
 {
 	PURPLE_PLUGIN_MAGIC,
-	PURPLE_MAJOR_VERSION,                               /**< major version */
-	PURPLE_MINOR_VERSION,                               /**< minor version */
-	PURPLE_PLUGIN_STANDARD,                             /**< type */
-	PIDGIN_PLUGIN_TYPE,                                 /**< ui_requirement */
-	0,                                                  /**< flags */
-	NULL,                                               /**< dependencies */
-	PURPLE_PRIORITY_DEFAULT,                            /**< priority */
+	PURPLE_MAJOR_VERSION,                             /**< major version */
+	PURPLE_MINOR_VERSION,                             /**< minor version */
+	PURPLE_PLUGIN_STANDARD,                           /**< type */
+	PIDGIN_PLUGIN_TYPE,                               /**< ui_requirement */
+	0,                                                /**< flags */
+	NULL,                                             /**< dependencies */
+	PURPLE_PRIORITY_DEFAULT,                          /**< priority */
 
-	"gtkjuick",                                         /**< id */
-	"juick",                                            /**< name */
-	"0.1",                                              /**< version */
-	"Adds some color and button for juick bot.",        /**< summary */
-	"Adds some color and button for juick bot.\nUnfortunately pidgin developers have decided that more than 100 tags may not be necessary when displaying the message",        /**< description */
-	"owner.mad.epa@gmail.com",                          /**< author */
-	"http://github.com/mad/pidgin-juick-plugin",        /**< homepage */
-	plugin_load,                                        /**< load */
-	plugin_unload,                                      /**< unload */
-	NULL,                                               /**< destroy */
-	NULL,                                               /**< ui_info        */
-	NULL,                                               /**< extra_info */
-	&prefs_info,                                        /**< prefs_info */
-	NULL,                                               /**< actions */
-		  					    /**< padding */
+	"gtkjuick",                                       /**< id */
+	"juick",                                          /**< name */
+	"0.1",                                            /**< version */
+	"Adds some color and button for juick bot.",      /**< summary */
+	"Adds some color and button for juick bot.\n" \
+		"Unfortunately pidgin developers have decided that more than " \
+		"100 tags may not be necessary when " \
+		"displaying the message",                 /**< description */
+	"owner.mad.epa@gmail.com",                        /**< author */
+	"http://github.com/mad/pidgin-juick-plugin",      /**< homepage */
+	plugin_load,                                      /**< load */
+	plugin_unload,                                    /**< unload */
+	NULL,                                             /**< destroy */
+	NULL,                                             /**< ui_info */
+	NULL,                                             /**< extra_info */
+	&prefs_info,                                      /**< prefs_info */
+	NULL,                                             /**< actions */
+							  /**< padding */
 	NULL,
 	NULL,
 	NULL,
