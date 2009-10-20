@@ -39,11 +39,10 @@
 #define DBGID "juick"
 #define JUICK_JID "juick@juick.com"
 #define JUBO_JID "jubo@nologin.ru"
-#define NS_JUICK_MESSAGE "http://juick.com/query#messages"
+#define NS_JUICK_MESSAGES "http://juick.com/query#messages"
 
 #define PREF_PREFIX "/plugins/core/juick-plugin"
-#define PREF_USE_AVATAR PREF_PREFIX "/avatar-p"
-#define PREF_USE_ID_PLUS PREF_PREFIX "/id_plus"
+#define PREF_IS_GREY_TAGS PREF_PREFIX "/is_grey_tags"
 
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
@@ -76,6 +75,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	gchar prev_char, old_char, *src, *msgid;
 	const gchar *account_user;
 	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 92;
+	gboolean is_grey_tags = purple_prefs_get_bool(PREF_IS_GREY_TAGS);
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -132,9 +132,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			i = j;
 			prev_char = src[i - 1];
 			continue;
-		} else if (isspace(prev_char) && ai == 0 && src[i] == ':') {
-			
-		} /*else if (isspace(prev_char) && ai == 2 && src[i] == '*') {
+		} else if (ai == 2 && is_grey_tags && isspace(prev_char) && src[i] == '*') {
 			j = i;
 			while (src[j] != '\0' && isspace(prev_char) && src[j] == '*') {
 				j++;
@@ -154,7 +152,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			i = j;
 			prev_char = src[i - 1];
 			continue;
-		}*/
+		}
 		g_string_append_c(output, src[i]);
 		prev_char = src[i];
 		i++; ai++;
@@ -323,7 +321,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 }
 
 static void
-message_do(PurpleConnection *gc, const char *msgid, gboolean rid)
+send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
 {
 	xmlnode *iq, *query;
 
@@ -333,7 +331,7 @@ message_do(PurpleConnection *gc, const char *msgid, gboolean rid)
 	xmlnode_set_attrib(iq, "id", "123");
 
 	query = xmlnode_new_child(iq, "query");
-	xmlnode_set_namespace(query, NS_JUICK_MESSAGE);
+	xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
 	if (msgid) {
 		xmlnode_set_attrib(query, "mid", msgid);
 		if (rid)
@@ -372,8 +370,8 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 			if (reply[0] == '#') {
 				if (!send) {
-					message_do(gc, body + 1, FALSE);
-					message_do(gc, body + 1, TRUE);
+					send_juick_messages_iq(gc, body + 1, FALSE);
+					send_juick_messages_iq(gc, body + 1, TRUE);
 					gtk_text_buffer_set_text(gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
 					gtk_text_buffer_insert_at_cursor(gtkconv->entry_buffer, body, -1);
@@ -526,12 +524,8 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 
         frame = purple_plugin_pref_frame_new();
 
-        ppref = purple_plugin_pref_new_with_name_and_label(PREF_USE_AVATAR, 
-                                               ("Use Avatar (very slow)"));
-        purple_plugin_pref_frame_add(frame, ppref);
-
-        ppref = purple_plugin_pref_new_with_name_and_label(PREF_USE_ID_PLUS,
-                                                        ("Add + after id"));
+        ppref = purple_plugin_pref_new_with_name_and_label(PREF_IS_GREY_TAGS, 
+                                               ("Greyed out tags in the message"));
         purple_plugin_pref_frame_add(frame, ppref);
 
 	return frame;	
@@ -631,8 +625,7 @@ static void
 init_plugin(PurplePlugin *plugin)
 {
 	purple_prefs_add_none(PREF_PREFIX);
-	purple_prefs_add_bool(PREF_USE_AVATAR, FALSE);
-	purple_prefs_add_bool(PREF_USE_ID_PLUS, FALSE);
+	purple_prefs_add_bool(PREF_IS_GREY_TAGS, FALSE);
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
