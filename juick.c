@@ -143,7 +143,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 							   src[i] == '*') {
 			j = i;
 			while (src[j] != '\0' && isspace(prev_char) &&
-						      src[j] == '*') {
+						      src[j] == '*')
+			{
 				j++;
 				while (!isspace(src[j]) && src[j] != '<')
 					j++;
@@ -154,7 +155,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			j--;
 			old_char = src[j];
 			src[j] = '\0';
-			msgid = &src[i - 1];
+			msgid = &src[i];
 			g_string_append_printf(output,
 				"<font color=\"grey\">%s</font>", msgid);
 			tag_count++; tag_count++;
