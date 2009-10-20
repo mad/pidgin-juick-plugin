@@ -177,7 +177,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	}
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
-	purple_debug_info(DBGID, "%s\n", (*displaying));
+	// purple_debug_info(DBGID, "%s\n", (*displaying));
 	return FALSE;
 
 }
@@ -212,7 +212,13 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_return_if_fail(output != NULL);
 
 	n = xmlnode_get_child(node, "body");
-	body = xmlnode_get_data_unescaped(n);
+	// Strangely, in the Help says
+	// "xmlnode_get_data Gets (escaped) data from a node".
+	// But we need to execute the function purple_markup_escape_text
+	// to ensure that the text was actually escaped
+	body = xmlnode_get_data(n);
+	s = purple_markup_escape_text(body, strlen(body));
+	g_free(body); body = s;
 	uname = xmlnode_get_attrib(node, "uname");
 	mid = xmlnode_get_attrib(node, "mid");
 	rid = xmlnode_get_attrib(node, "rid");
@@ -222,7 +228,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	mood = xmlnode_get_attrib(node, "mood");
 	replyto = xmlnode_get_attrib(node, "replyto");
 	tagn = xmlnode_get_child(node, "tag");
-	purple_debug_info(DBGID, "Make tags\n");
+	// purple_debug_info(DBGID, "Make tags\n");
 	while (tagn) {
 		tag = xmlnode_get_data(tagn);
 		if (tag) {
@@ -237,7 +243,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		g_free(tag);
 		tagn = xmlnode_get_next_twin(tagn);
 	}
-	purple_debug_info(DBGID, "Join tags and mood\n");
+	// purple_debug_info(DBGID, "Join tags and mood\n");
 	if (tags && mood)
 		s = g_strdup_printf(" %s mood: %s", tags, mood);
 	else if (tags)
@@ -255,24 +261,23 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	n = xmlnode_get_parent(node);
 	if (n)
 		bodyupn = xmlnode_get_child(n, "body");
-	purple_debug_info(DBGID, "Make comment and extra information\n");
+	// purple_debug_info(DBGID, "Make comment and extra information\n");
 	if (bodyupn) {
 		bodyup = xmlnode_get_data(bodyupn);
 		if (bodyup && replyto)
 			comment = strchr(bodyup, '>');
 		i = 0;
-		purple_debug_info(DBGID, "asdf0\n");
 		if (bodyup && bodyup[0] != '@') {
 			while (bodyup[i] != '\0' && (!isspace(bodyup[i]) || 
 						      isblank(bodyup[i])))
 				i++;
-			bodyup[i + 1] = '\0';
+			if (bodyup[i] != '\0')
+				bodyup[i + 1] = '\0';
 		}
-		purple_debug_info(DBGID, "asdf1\n");
 		if (bodyup && i != 0 && !replyto)
 			g_string_prepend(output, bodyup);
 	}
-	purple_debug_info(DBGID, "Join all strings\n");
+	// purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
 		g_string_append_printf(output,
 			"%s @%s: reply to %s%s<br/>%s%s<br/>#%s",
@@ -284,7 +289,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(ts_);
 	g_free(s);
 	g_free(body);
-	purple_debug_info(DBGID, "Add prefix or suffix of the message\n");
+	// purple_debug_info(DBGID, "Add prefix or suffix at the message\n");
 	if (first) {
 		if (midrid != NULL)
 			purple_util_chrreplace(midrid, '/', '#');
@@ -557,7 +562,7 @@ static void *(*saved_notify_uri)(const char *uri);
 static void *juick_notify_uri(const char *uri) {
 	void *retval = NULL;
 
-	purple_debug_misc(DBGID, "Go url %s\n", uri);
+	purple_debug_info(DBGID, "Go url %s\n", uri);
 
 	if(strncmp(uri, "j:", 2) == 0) {
 		purple_got_protocol_handler_uri(uri);
