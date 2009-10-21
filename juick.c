@@ -21,6 +21,8 @@
 #endif
 #endif
 
+#define PURPLE_PLUGINS
+
 #include <ctype.h>
 #include <glib.h>
 #include <string.h>
@@ -60,9 +62,10 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
 	s = purple_markup_strip_html(src);
-	s1 = strchr(s, '\n');
+	s1 = g_utf8_strchr(s, -1, '\n');
 	if (s) {
-		s1 += 1;
+		//s1 += 1;
+		s1 = g_utf8_next_char(s1);
 		g_string_append_len(output, s, s1 - s);
 		if (is_show_max_message)
 			g_string_append_printf(output,
@@ -74,7 +77,7 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 					MORETAGSNOTPLACING, tag_max);
 		g_string_append(output, s);
 	}
-	free(s);
+	g_free(s);
 }
 
 static gboolean
@@ -177,7 +180,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	}
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
-	// purple_debug_info(DBGID, "%s\n", (*displaying));
+	// purple_debug_error(DBGID, "%s\n", (*displaying));
 	return FALSE;
 
 }

@@ -1,5 +1,5 @@
 CFLAGS = -O2 -pipe -shared -fPIC -DPIC
-PURPLE_CFLAGS = $(CFLAGS) -DPURPLE_PLUGINS
+PURPLE_CFLAGS = $(CFLAGS)
 PURPLE_CFLAGS += $(shell pkg-config --cflags purple)
 PURPLE_CFLAGS += $(shell pkg-config --cflags pidgin)
 
