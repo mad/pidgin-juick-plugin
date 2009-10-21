@@ -205,9 +205,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 {
 	xmlnode *n, *bodyupn = NULL, *tagn;
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
-	gchar *body = NULL, *bodyup = NULL, *tags = NULL, *tag = NULL, 
-	      *s = NULL, *midrid = NULL, *comment = NULL, *ts_ = NULL;
-	int i = 0;
+	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
+	      *tag = NULL, *s = NULL, *midrid = NULL, *comment = NULL,
+	      *ts_ = NULL;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -268,16 +268,18 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	if (bodyupn) {
 		bodyup = xmlnode_get_data(bodyupn);
 		if (bodyup && replyto)
-			comment = strchr(bodyup, '>');
-		i = 0;
-		if (bodyup && bodyup[0] != '@') {
-			while (bodyup[i] != '\0' && (!isspace(bodyup[i]) || 
-						      isblank(bodyup[i])))
-				i++;
-			if (bodyup[i] != '\0')
-				bodyup[i + 1] = '\0';
+			comment = g_utf8_strchr(bodyup, strlen(bodyup), '>');
+		if (bodyup && *bodyup != '@') {
+			next = g_utf8_next_char(bodyup);
+			while (g_unichar_isprint(g_utf8_get_char(next)))
+				next = g_utf8_next_char(next);
+			if (next) {
+				next = g_utf8_next_char(next);
+				if (next)
+					*next = '\0';
+			}
 		}
-		if (bodyup && i != 0 && !replyto)
+		if (bodyup && next && *next == '\0' && !replyto)
 			g_string_prepend(output, bodyup);
 	}
 	// purple_debug_info(DBGID, "Join all strings\n");
@@ -345,7 +347,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 //		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
 		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags,
 								    time(NULL));
-		//g_free(s); // need?
+		g_free(s); // need?
 		xmlnode_free(*packet);
 		*packet = NULL;
 	} else {
@@ -360,7 +362,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 								       "code"));
 			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name,
 							  s, flags, time(NULL));
-			//g_free(s); // need?
+			g_free(s); // need?
 		}
 	}
 }
