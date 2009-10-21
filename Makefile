@@ -6,8 +6,8 @@ PURPLE_CFLAGS += $(shell pkg-config --cflags pidgin)
 # for win
 #PIDGIN_DIR=/home/mad/git/pidgin-clone/pidgin/plugins/
 #GTK_TOP=/home/mad/workspace/project/pidgin-dev/win32-dev/gtk_2_0/
-PIDGIN_DIR=/home/oleg/opium/pidgin-2.6.2/pidgin/plugins/
-GTK_TOP=/home/oleg/opium/pidgin-2.6.2/win32-dev/gtk_2_0/
+PIDGIN_DIR=../../workspace/pidgin-2.6.3/pidgin/plugins
+GTK_TOP=../../../../workspace/win32-dev/gtk_2_0
 
 all:
 	gcc -Wall ${PURPLE_CFLAGS} juick.c -o juick.so
@@ -18,7 +18,8 @@ win:
 	cp juick.c $(PIDGIN_DIR)
 	$(MAKE) -f Makefile.mingw -C $(PIDGIN_DIR) juick.dll GTK_TOP=$(GTK_TOP)
 	cp $(PIDGIN_DIR)/juick.dll .
-	i486-mingw32-strip juick.dll
+	strip juick.dll
+	cp juick.dll /cygdrive/c/Documents\ and\ Settings/user/Application\ Data/.purple/plugins/
 
 test: test.c
 	gcc test.c -o test ${PURPLE_CFLAGS} -lglib -lpurple
