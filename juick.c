@@ -80,16 +80,95 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 	g_free(s);
 }
 
+static void
+highlighting_juick_message_tags(GString *output, gchar **current,
+						int *tag_count)
+{
+	gchar *p = *current, *prev = NULL, *msgid, old_char;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	if (!p)
+		return;
+
+	msgid = p;
+	prev = g_utf8_prev_char(p);
+	while (p && g_unichar_isspace(g_utf8_get_char(prev)) &&
+						*p == '*')
+	{
+		p = g_utf8_next_char(p);
+		while (p && !g_unichar_isspace(g_utf8_get_char(p)) &&
+							*p != '<')
+			p = g_utf8_next_char(p);
+		if (p) {
+			prev = p;
+			p = g_utf8_next_char(p);
+		}
+	}
+	if (p) {
+		p = g_utf8_prev_char(p);
+		old_char = *p;
+		*p = '\0';
+		g_string_append_printf(output,
+			"<font color=\"grey\">%s</font>", msgid);
+		++*tag_count; ++*tag_count;
+		*p = old_char;
+		*current = p;
+	}
+}
+
+static gboolean
+make_juick_tag(GString *output, const gchar *account_user, gchar **current, 
+							int *tag_count)
+{
+	gchar *p = *current, *prev = NULL, *msgid, old_char, reply;
+	int result = FALSE;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	prev = p;
+	reply = *prev;
+	p = g_utf8_next_char(p);
+	if (*prev == '@') {
+		while (p && (g_unichar_isalnum(g_utf8_get_char(p)) || 
+			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
+			p = g_utf8_next_char(p);
+	} else if (*prev == '#') {
+		while (g_unichar_isdigit(g_utf8_get_char(p)) || *p == '/') {
+			if (*p == '/') 
+				reply = '#';
+			p = g_utf8_next_char(p);
+		}
+	}
+	if (p == g_utf8_next_char(prev)) {
+		g_string_append_unichar(output, g_utf8_get_char(p));
+	} else if (p) {
+		msgid = prev;
+		p = g_utf8_next_char(p);
+		old_char = *p;
+		*p = '\0';
+		g_string_append_printf(output, 
+		  "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
+		  account_user, reply, msgid, msgid);
+		++*tag_count; ++*tag_count;
+		*p = old_char;
+		if (*p != ':') 
+			result = TRUE;
+	}
+	*current = p;
+	return result;
+}
+
 static gboolean
 juick_on_displaying(PurpleAccount *account, const char *who,
 	   char **displaying, PurpleConversation *conv,
 	   PurpleMessageFlags flags)
 {
 	GString *output;
-	gchar prev_char, old_char, *src, *msgid;
+	gchar *p, *prev, *src;
 	const gchar *account_user;
-	int i = 0, j = 0, ai = 0, tag_count = 0, tag_max = 92;
-	gboolean is_grey_tags = purple_prefs_get_bool(PREF_IS_GREY_TAGS);
+	int i = 0, tag_count = 0, tag_max = 92;
+	gboolean is_highlighting_tags = purple_prefs_get_bool(PREF_IS_GREY_TAGS);
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -100,89 +179,43 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		return FALSE;
 	}
 
-	output = g_string_new("");
 	src = *displaying;
+	output = g_string_sized_new(strlen(src));
 
 	account_user = purple_account_get_username(account);
 	// now search message text and look for things to highlight
-	prev_char = src[i];
-	while(src[i] != '\0') {
-		if (src[i] == '<')
+	p = src;
+	while(p) {
+		if (*p == '<')
 			tag_count++;
 		if (tag_count > tag_max) {
-			add_warning_message(output, &src[i], tag_max);
+			add_warning_message(output, p, tag_max);
 			break;			
 		}
-		if( (i == 0 || isspace(prev_char) || prev_char == '>' ||
-			prev_char == '(') && (src[i] == '@' || src[i] == '#') )
+		prev = g_utf8_prev_char(p);
+		if( (g_unichar_isspace(g_utf8_get_char(prev)) || *prev == '>'
+				|| *prev == '(') && (*p == '@' || *p == '#'))
 		{
-			prev_char = src[i];
-			i++;
-			j = i;
-			if (prev_char == '@') {
-				while ( (src[j] != '\0') && (isalnum(src[j]) ||
-				 	      src[j] == '-' || src[j] == '@' ||
-					      src[j] == '.' || src[j] == '_')) 
-					j++;
-			} else if (prev_char == '#') {
-				while ( (src[j] != '\0') && (isdigit(src[j]) ||
-					 		     src[j] == '/') ) {
-					if (src[j] == '/') 
-						prev_char = '#';
-					j++;
-				}
-			}
-			if (i == j) {
-				g_string_append_c(output, prev_char);
-				continue;
-			}
-			old_char = src[j];
-			src[j] = '\0';
-			msgid = &src[i - 1];
-			g_string_append_printf(output, 
-			  "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
-			  account_user, prev_char, msgid, msgid);
-			tag_count++; tag_count++;
-			src[j] = old_char;
-			if (src[j] == ':') 
-				ai = 0;
-			i = j;
-			prev_char = src[i - 1];
+			if (make_juick_tag(output, account_user, &p, &tag_count)
+								&& p == src)
+				i = 0;
+			else
+				i = 3;
 			continue;
-		} else if (ai == 2 && is_grey_tags && isspace(prev_char) &&
-							   src[i] == '*') {
-			j = i;
-			while (src[j] != '\0' && isspace(prev_char) &&
-						      src[j] == '*')
-			{
-				j++;
-				while (!isspace(src[j]) && src[j] != '<')
-					j++;
-				prev_char = src[j];
-				if (src[j] != '\0')
-					j++;
-			}
-			j--;
-			old_char = src[j];
-			src[j] = '\0';
-			msgid = &src[i];
-			g_string_append_printf(output,
-				"<font color=\"grey\">%s</font>", msgid);
-			tag_count++; tag_count++;
-			src[j] = old_char;
-			i = j;
-			prev_char = src[i - 1];
+		} else if (i == 2 && is_highlighting_tags &&
+				g_unichar_isspace(g_utf8_get_char(prev)) &&
+								*p == '*')
+		{
+			highlighting_juick_message_tags(output, &p,&tag_count);
 			continue;
 		}
-		g_string_append_c(output, src[i]);
-		prev_char = src[i];
-		i++; ai++;
+		g_string_append_unichar(output, g_utf8_get_char(p));
+		p = g_utf8_next_char(p);
 	}
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
 	// purple_debug_error(DBGID, "%s\n", (*displaying));
 	return FALSE;
-
 }
 
 static char
