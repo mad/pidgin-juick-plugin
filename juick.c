@@ -141,6 +141,7 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	}
 	if (p == g_utf8_next_char(prev)) {
 		g_string_append_unichar(output, g_utf8_get_char(p));
+		*current = p;
 	} else if (*p) {
 		msgid = prev;
 		old_char = *p;
@@ -152,8 +153,8 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 		*p = old_char;
 		if (*p == ':' && reply == '@')
 			result = TRUE;
+		*current = p;
 	}
-	*current = p;
 	return result;
 }
 
