@@ -244,10 +244,10 @@ static void
 body_reformat(GString *output, xmlnode *node, gboolean first)
 {
 	xmlnode *n, *bodyupn = NULL, *tagn;
-	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
+	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto, *attach;
 	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
 	      *tag = NULL, *s = NULL, *midrid = NULL, *comment = NULL,
-	      *ts_ = NULL, old_char = '\0';
+	      *ts_ = NULL, *url = NULL, old_char = '\0';
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -270,6 +270,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	replies = xmlnode_get_attrib(node, "replies");
 	mood = xmlnode_get_attrib(node, "mood");
 	replyto = xmlnode_get_attrib(node, "replyto");
+	attach = xmlnode_get_attrib(node, "attach");
 	tagn = xmlnode_get_child(node, "tag");
 	// purple_debug_info(DBGID, "Make tags\n");
 	while (tagn) {
@@ -321,18 +322,25 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			}
 		}
 	}
+	if (attach && mid)
+		url = g_strdup_printf("http://i.juick.com/p/%s.%s<br/>",
+							mid, attach);
+	else
+		// FIXME: how to do empty string?
+		url = g_strdup_printf("%c", '\0');
 	// purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
 		g_string_append_printf(output,
 			"%s @%s: reply to %s%s<br/>%s%s<br/>#%s",
 			ts_, uname, replyto, s, comment, body, midrid);
 	else
-		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s",
-					     ts_, uname, s, body, midrid);
+		g_string_append_printf(output, "%s @%s:%s<br/>%s%s<br/>#%s",
+					     ts_, uname, s, url, body, midrid);
 	g_free(s);
 	g_free(ts_);
 	g_free(body);
-	// purple_debug_info(DBGID, "Add prefix or suffix at the message\n");
+	g_free(url);
+	// purple_debug_info(DBGID, "Add prefix or suffix to the message\n");
 	if (bodyup && next && *next == '\0' && !replyto) {
 		s = g_strdup_printf("%s<br/>", bodyup);
 		g_string_prepend(output, s);
