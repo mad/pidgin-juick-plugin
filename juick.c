@@ -330,6 +330,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s",
 					     ts_, uname, s, body, midrid);
 	g_free(s);
+	g_free(ts_);
+	g_free(body);
+	// purple_debug_info(DBGID, "Add prefix or suffix at the message\n");
 	if (bodyup && next && *next == '\0' && !replyto) {
 		s = g_strdup_printf("%s<br/>", bodyup);
 		g_string_prepend(output, s);
@@ -337,9 +340,6 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		*next = old_char;
 	}
 	g_free(bodyup);
-	g_free(ts_);
-	g_free(body);
-	// purple_debug_info(DBGID, "Add prefix or suffix at the message\n");
 	if (first) {
 		if (midrid != NULL)
 			purple_util_chrreplace(midrid, '/', '#');
