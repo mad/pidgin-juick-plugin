@@ -49,6 +49,8 @@
 #define PREF_IS_HIGHLIGHTING_TAGS PREF_PREFIX "/is_highlighting_tags"
 #define PREF_IS_SHOW_MAX_MESSAGE PREF_PREFIX "/is_show_max_message"
 
+const char *IMAGE_PREFIX = "http://i.juick.com/p";
+
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
 {
@@ -201,8 +203,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		}
 		if(((*p == '@'|| *p == '#') && b) || (*p == '@' && begin))
 		{
-			if (make_juick_tag(output, account_user, &p, &tag_count)
-								&& begin)
+			if (make_juick_tag(output, account_user, &p, &tag_count))
 				i = 0;
 			else
 				i = 3;
@@ -311,27 +312,31 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		if (bodyup && replyto)
 			comment = g_utf8_strchr(bodyup, strlen(bodyup), '>');
 		if (bodyup && *bodyup != '@') {
-			next = g_utf8_next_char(bodyup);
+			if (comment)
+				next = g_utf8_next_char(comment);
+			else
+				next = g_utf8_next_char(bodyup);
 			while (g_unichar_isprint(g_utf8_get_char(next)))
 				next = g_utf8_next_char(next);
-			if (next) {
-				if (next) {
-					old_char = *next;
-					*next = '\0';
-				}
+			if (*next) {
+				old_char = *next;
+				*next = '\0';
 			}
 		}
 	}
-	if (attach && mid)
-		url = g_strdup_printf("http://i.juick.com/p/%s.%s<br/>",
-							mid, attach);
-	else
+	if (attach && mid) {
+		if (g_str_has_prefix(body, IMAGE_PREFIX))
+			url = g_strdup_printf("%c", '\0');
+		else
+			url = g_strdup_printf("%s/%s.%s<br/>", IMAGE_PREFIX,
+								mid, attach);
+	} else
 		// FIXME: how to do empty string?
 		url = g_strdup_printf("%c", '\0');
 	// purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
 		g_string_append_printf(output,
-			"%s @%s: reply to %s%s<br/>%s%s<br/>#%s",
+			"%s @%s: reply to %s%s<br/>%s<br/>%s<br/>#%s",
 			ts_, uname, replyto, s, comment, body, midrid);
 	else
 		g_string_append_printf(output, "%s @%s:%s<br/>%s%s<br/>#%s",
@@ -341,7 +346,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(body);
 	g_free(url);
 	// purple_debug_info(DBGID, "Add prefix or suffix to the message\n");
-	if (bodyup && next && *next == '\0' && !replyto) {
+	if (bodyup && *next == '\0' && !replyto) {
 		s = g_strdup_printf("%s<br/>", bodyup);
 		g_string_prepend(output, s);
 		g_free(s);
