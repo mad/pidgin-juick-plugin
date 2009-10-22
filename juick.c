@@ -314,15 +314,12 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			while (g_unichar_isprint(g_utf8_get_char(next)))
 				next = g_utf8_next_char(next);
 			if (next) {
-				next = g_utf8_next_char(next);
 				if (next) {
 					old_char = *next;
 					*next = '\0';
 				}
 			}
 		}
-		if (bodyup && next && *next == '\0' && !replyto)
-			g_string_prepend(output, bodyup);
 	}
 	// purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
@@ -332,11 +329,15 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	else
 		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s",
 					     ts_, uname, s, body, midrid);
-	if (next && *next == '\0' && old_char != '\0')
+	g_free(s);
+	if (bodyup && next && *next == '\0' && !replyto) {
+		s = g_strdup_printf("%s<br/>", bodyup);
+		g_string_prepend(output, s);
+		g_free(s);
 		*next = old_char;
+	}
 	g_free(bodyup);
 	g_free(ts_);
-	g_free(s);
 	g_free(body);
 	// purple_debug_info(DBGID, "Add prefix or suffix at the message\n");
 	if (first) {
