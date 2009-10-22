@@ -46,7 +46,7 @@
 #define NS_JUICK_MESSAGES "http://juick.com/query#messages"
 
 #define PREF_PREFIX "/plugins/core/juick-plugin"
-#define PREF_IS_GREY_TAGS PREF_PREFIX "/is_grey_tags"
+#define PREF_IS_HIGHLIGHTING_TAGS PREF_PREFIX "/is_highlighting_tags"
 #define PREF_IS_SHOW_MAX_MESSAGE PREF_PREFIX "/is_show_max_message"
 
 static void
@@ -64,7 +64,6 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 	s = purple_markup_strip_html(src);
 	s1 = g_utf8_strchr(s, -1, '\n');
 	if (s) {
-		//s1 += 1;
 		s1 = g_utf8_next_char(s1);
 		g_string_append_len(output, s, s1 - s);
 		if (is_show_max_message)
@@ -88,24 +87,24 @@ highlighting_juick_message_tags(GString *output, gchar **current,
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	if (!p)
+	if (!*p)
 		return;
 
 	msgid = p;
 	prev = g_utf8_prev_char(p);
-	while (p && g_unichar_isspace(g_utf8_get_char(prev)) &&
+	while (*p && g_unichar_isspace(g_utf8_get_char(prev)) &&
 						*p == '*')
 	{
 		p = g_utf8_next_char(p);
-		while (p && !g_unichar_isspace(g_utf8_get_char(p)) &&
+		while (*p && !g_unichar_isspace(g_utf8_get_char(p)) &&
 							*p != '<')
 			p = g_utf8_next_char(p);
-		if (p) {
+		if (*p) {
 			prev = p;
 			p = g_utf8_next_char(p);
 		}
 	}
-	if (p) {
+	if (*p) {
 		p = g_utf8_prev_char(p);
 		old_char = *p;
 		*p = '\0';
@@ -142,9 +141,8 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	}
 	if (p == g_utf8_next_char(prev)) {
 		g_string_append_unichar(output, g_utf8_get_char(p));
-	} else if (p) {
+	} else if (*p) {
 		msgid = prev;
-		p = g_utf8_next_char(p);
 		old_char = *p;
 		*p = '\0';
 		g_string_append_printf(output, 
@@ -152,7 +150,7 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 		  account_user, reply, msgid, msgid);
 		++*tag_count; ++*tag_count;
 		*p = old_char;
-		if (*p != ':') 
+		if (*p == ':' && reply == '@')
 			result = TRUE;
 	}
 	*current = p;
@@ -167,8 +165,10 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar *p, *prev, *src;
 	const gchar *account_user;
-	int i = 0, tag_count = 0, tag_max = 92;
-	gboolean is_highlighting_tags = purple_prefs_get_bool(PREF_IS_GREY_TAGS);
+	int i = 3, tag_count = 0, tag_max = 92;
+	gboolean begin = TRUE, b = FALSE;
+	gboolean is_highlighting_tags = purple_prefs_get_bool(
+			PREF_IS_HIGHLIGHTING_TAGS);
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -185,22 +185,27 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	account_user = purple_account_get_username(account);
 	// now search message text and look for things to highlight
 	p = src;
-	while(p) {
+	prev = p;
+	while(*p) {
 		if (*p == '<')
 			tag_count++;
 		if (tag_count > tag_max) {
 			add_warning_message(output, p, tag_max);
 			break;			
 		}
-		prev = g_utf8_prev_char(p);
-		if( (g_unichar_isspace(g_utf8_get_char(prev)) || *prev == '>'
-				|| *prev == '(') && (*p == '@' || *p == '#'))
+		if (p != src) {
+			prev = g_utf8_prev_char(p);
+			b = g_unichar_isspace(g_utf8_get_char(prev)) ||
+				*prev == '>' || *prev == '(';
+		}
+		if(((*p == '@'|| *p == '#') && b) || (*p == '@' && begin))
 		{
 			if (make_juick_tag(output, account_user, &p, &tag_count)
-								&& p == src)
+								&& begin)
 				i = 0;
 			else
 				i = 3;
+			begin = FALSE;
 			continue;
 		} else if (i == 2 && is_highlighting_tags &&
 				g_unichar_isspace(g_utf8_get_char(prev)) &&
@@ -211,6 +216,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		}
 		g_string_append_unichar(output, g_utf8_get_char(p));
 		p = g_utf8_next_char(p);
+		i++;
 	}
 	free(*displaying);
 	(*displaying) = g_string_free(output, FALSE);
@@ -240,7 +246,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto;
 	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
 	      *tag = NULL, *s = NULL, *midrid = NULL, *comment = NULL,
-	      *ts_ = NULL;
+	      *ts_ = NULL, old_char = '\0';
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -308,8 +314,10 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 				next = g_utf8_next_char(next);
 			if (next) {
 				next = g_utf8_next_char(next);
-				if (next)
+				if (next) {
+					old_char = *next;
 					*next = '\0';
+				}
 			}
 		}
 		if (bodyup && next && *next == '\0' && !replyto)
@@ -323,6 +331,8 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	else
 		g_string_append_printf(output, "%s @%s:%s<br/>%s<br/>#%s",
 					     ts_, uname, s, body, midrid);
+	if (next && *next == '\0' && old_char != '\0')
+		*next = old_char;
 	g_free(bodyup);
 	g_free(ts_);
 	g_free(s);
@@ -619,8 +629,8 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 
         frame = purple_plugin_pref_frame_new();
 
-        ppref = purple_plugin_pref_new_with_name_and_label(PREF_IS_GREY_TAGS, 
-                                            ("Greyed out tags in the message"));
+        ppref = purple_plugin_pref_new_with_name_and_label(
+		PREF_IS_HIGHLIGHTING_TAGS, ("Greyed out tags in the message"));
         purple_plugin_pref_frame_add(frame, ppref);
         ppref = purple_plugin_pref_new_with_name_and_label(
 						PREF_IS_SHOW_MAX_MESSAGE,
@@ -731,7 +741,7 @@ static void
 init_plugin(PurplePlugin *plugin)
 {
 	purple_prefs_add_none(PREF_PREFIX);
-	purple_prefs_add_bool(PREF_IS_GREY_TAGS, FALSE);
+	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
 	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);
 }
 
