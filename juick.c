@@ -306,7 +306,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	n = xmlnode_get_parent(node);
 	if (n)
 		bodyupn = xmlnode_get_child(n, "body");
-	// purple_debug_info(DBGID, "Make comment and extra information\n");
+	purple_debug_info(DBGID, "Make comment and extra information\n");
 	if (bodyupn) {
 		bodyup = xmlnode_get_data(bodyupn);
 		if (bodyup && replyto)
@@ -324,16 +324,13 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			}
 		}
 	}
-	if (attach && mid) {
-		if (g_str_has_prefix(body, IMAGE_PREFIX))
-			url = g_strdup_printf("%c", '\0');
-		else
-			url = g_strdup_printf("%s/%s.%s<br/>", IMAGE_PREFIX,
-								mid, attach);
-	} else
+	if (attach && mid && g_str_has_prefix(body, IMAGE_PREFIX))
+		url = g_strdup_printf("%s/%s.%s<br/>", IMAGE_PREFIX,
+							mid, attach);
+	if (!url)
 		// FIXME: how to do empty string?
 		url = g_strdup_printf("%c", '\0');
-	// purple_debug_info(DBGID, "Join all strings\n");
+	purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
 		g_string_append_printf(output,
 			"%s @%s: reply to %s%s<br/>%s<br/>%s<br/>#%s",
@@ -345,11 +342,13 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(ts_);
 	g_free(body);
 	g_free(url);
-	// purple_debug_info(DBGID, "Add prefix or suffix to the message\n");
-	if (bodyup && *next == '\0' && !replyto) {
-		s = g_strdup_printf("%s<br/>", bodyup);
-		g_string_prepend(output, s);
-		g_free(s);
+	purple_debug_info(DBGID, "Add prefix or suffix to the message\n");
+	if (bodyup && next && *next == '\0') {
+		if (!replyto) {
+			s = g_strdup_printf("%s<br/>", bodyup);
+			g_string_prepend(output, s);
+			g_free(s);
+		}
 		*next = old_char;
 	}
 	g_free(bodyup);
