@@ -203,7 +203,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		}
 		if(((*p == '@'|| *p == '#') && b) || (*p == '@' && begin))
 		{
-			if (make_juick_tag(output, account_user, &p, &tag_count))
+			if (make_juick_tag(output, account_user, &p,
+								&tag_count))
 				i = 0;
 			else
 				i = 3;
@@ -221,7 +222,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		i++;
 	}
 	free(*displaying);
-	(*displaying) = g_string_free(output, FALSE);
+	*displaying = g_string_free(output, FALSE);
 	// purple_debug_error(DBGID, "%s\n", (*displaying));
 	return FALSE;
 }
@@ -324,8 +325,8 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			}
 		}
 	}
-	if (attach && mid && g_str_has_prefix(body, IMAGE_PREFIX))
-		url = g_strdup_printf("%s/%s.%s<br/>", IMAGE_PREFIX,
+	if (attach && mid && bodyup && !g_str_has_prefix(bodyup, IMAGE_PREFIX))
+		url = g_strdup_printf("%s/%s.%s\n", IMAGE_PREFIX,
 							mid, attach);
 	if (!url)
 		// FIXME: how to do empty string?
@@ -333,10 +334,10 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	purple_debug_info(DBGID, "Join all strings\n");
 	if (replyto && comment)
 		g_string_append_printf(output,
-			"%s @%s: reply to %s%s<br/>%s<br/>%s<br/>#%s",
+			"%s @%s: reply to %s%s\n%s\n%s\n#%s",
 			ts_, uname, replyto, s, comment, body, midrid);
 	else
-		g_string_append_printf(output, "%s @%s:%s<br/>%s%s<br/>#%s",
+		g_string_append_printf(output, "%s @%s:%s\n%s%s\n#%s",
 					     ts_, uname, s, url, body, midrid);
 	g_free(s);
 	g_free(ts_);
@@ -345,7 +346,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	purple_debug_info(DBGID, "Add prefix or suffix to the message\n");
 	if (bodyup && next && *next == '\0') {
 		if (!replyto) {
-			s = g_strdup_printf("%s<br/>", bodyup);
+			s = g_strdup_printf("%s\n", bodyup);
 			g_string_prepend(output, s);
 			g_free(s);
 		}
@@ -355,16 +356,16 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	if (first) {
 		if (midrid != NULL)
 			purple_util_chrreplace(midrid, '/', '#');
-		g_string_append_printf(output, " http://juick.com/%s<br/>",
+		g_string_append_printf(output, " http://juick.com/%s\n",
 								   midrid);
 		if (replies)
-			g_string_append_printf(output, "Replies (%s)<br/>",
+			g_string_append_printf(output, "Replies (%s)\n",
 								  replies);
 		if (rid && strcmp(rid, "1") && !replyto)
 			g_string_prepend(output, 
-				"Continuation of the previous replies<br/>");
+				"Continuation of the previous replies\n");
 	} else
-		g_string_append(output, "<br/>");
+		g_string_append(output, "\n");
 	g_free(midrid);
 }
 
@@ -373,7 +374,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node;
 	const char *from;
-	gchar *s = NULL;
+	gchar *s = NULL, *s1 = NULL;
 	GString *output = NULL;
 	PurpleConversation *conv;
 	PurpleMessageFlags flags;
@@ -400,11 +401,12 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account,
 									  from);
 		s = g_string_free(output, FALSE);
+		s1 = purple_strreplace(s, "\n", "<br>");
 		// TODO: Make sound
 //		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
-		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s, flags,
-								    time(NULL));
-		g_free(s); // need?
+		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s1,
+							flags, time(NULL));
+		g_free(s); g_free(s1);
 		xmlnode_free(*packet);
 		*packet = NULL;
 	} else {
@@ -419,7 +421,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 								       "code"));
 			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name,
 							  s, flags, time(NULL));
-			g_free(s); // need?
+			g_free(s);
 		}
 	}
 }
