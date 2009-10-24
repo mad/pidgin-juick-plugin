@@ -728,8 +728,8 @@ static PurplePluginInfo info =
 	PURPLE_PRIORITY_DEFAULT,                          /**< priority */
 
 	"gtkjuick",                                       /**< id */
-	"juick",                                          /**< name */
-	"0.1",                                            /**< version */
+	"Juick",                                          /**< name */
+	"0.2",                                            /**< version */
 	"Adds some color and button for juick bot.",      /**< summary */
 	"Adds some color and button for juick bot.\n" \
 		"Unfortunately pidgin developers have decided that more than " \
