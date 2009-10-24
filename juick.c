@@ -395,6 +395,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account,
 									  from);
 		s = g_string_free(output, FALSE);
+		// For im history
 		s1 = purple_strreplace(s, "\n", "<br>");
 		// Send message
 		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s1,
