@@ -11,15 +11,15 @@
 - Скачать архив:
 
         wget http://github.com/pktfag/pidgin-juick-plugin/tarball/master
-        tar xzf pktfag-pidgin-juick-plugin-*.tgz
+        tar xzf pktfag-pidgin-juick-plugin-*.tar.gz
         cd pktfag-pidgin-juick-plugin*
         cp juick.so ~/.purple/plugins/
 
-    пользователи Windows, копируйте в папку `%APPDATA%\.purple\plugins\`
+    пользователи Windows, копируйте в папку `%APPDATA%\\.purple\plugins\`
 
 - Создать локальный репозиторий:
 
-        git clone git://github.com/pidgin/pidgin-juick-plugin.git
+        git clone git://github.com/pktfag/pidgin-juick-plugin.git
         cd pidgin-juick-plugin
         cp juick.so ~/.purple/plugins/
 
