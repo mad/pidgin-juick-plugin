@@ -15,12 +15,6 @@
  * Floor, Boston, MA 02110-1301, USA.
  */
 
-#if 0
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
-#endif
-
 #define PURPLE_PLUGINS
 
 #include <ctype.h>
@@ -325,7 +319,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			}
 		}
 	}
-	if (attach && mid && bodyup && !g_str_has_prefix(bodyup, IMAGE_PREFIX))
+	if (attach && mid && !g_str_has_prefix(body, IMAGE_PREFIX))
 		url = g_strdup_printf("%s/%s.%s\n", IMAGE_PREFIX,
 							mid, attach);
 	if (!url)
@@ -402,10 +396,13 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 									  from);
 		s = g_string_free(output, FALSE);
 		s1 = purple_strreplace(s, "\n", "<br>");
-		// TODO: Make sound
-//		purple_sound_play_event(PURPLE_SOUND_FIRST_RECEIVE, gc->account);
+		// Send message
 		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s1,
 							flags, time(NULL));
+		// Make sound
+		purple_signal_emit(purple_conversations_get_handle(),
+				"received-im-msg", gc->account, conv->name, "",
+				conv, flags);
 		g_free(s); g_free(s1);
 		xmlnode_free(*packet);
 		*packet = NULL;
@@ -737,8 +734,8 @@ static PurplePluginInfo info =
 		"Unfortunately pidgin developers have decided that more than " \
 		"100 tags may not be necessary when " \
 		"displaying the message",                 /**< description */
-	"owner.mad.epa@gmail.com",                        /**< author */
-	"http://github.com/mad/pidgin-juick-plugin",      /**< homepage */
+	"owner.mad.epa@gmail.com, pktfag@gmail.com",      /**< author */
+	"http://github.com/pktfag/pidgin-juick-plugin",   /**< homepage */
 	plugin_load,                                      /**< load */
 	plugin_unload,                                    /**< unload */
 	NULL,                                             /**< destroy */
