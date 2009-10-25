@@ -259,10 +259,10 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	n = xmlnode_get_child(node, "body");
 	// Strangely, in the Help says
 	// "xmlnode_get_data Gets (escaped) data from a node".
-	// But we need to execute the function purple_markup_escape_text
+	// But we need to execute the special function
 	// to ensure that the text was actually escaped
 	body = xmlnode_get_data(n);
-	s = purple_markup_escape_text(body, strlen(body));
+	s = g_markup_escape_text(body, strlen(body));
 	g_free(body); body = s;
 	uname = xmlnode_get_attrib(node, "uname");
 	mid = xmlnode_get_attrib(node, "mid");
@@ -304,7 +304,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		midrid = g_strdup_printf("%s/%s", mid, rid);
 	else
 		midrid = g_strdup_printf("%s", mid);
-	n = xmlnode_get_parent(node);
+	n = node->parent;
 	if (n)
 		bodyupn = xmlnode_get_child(n, "body");
 	purple_debug_info(DBGID, "Make comment and extra information\n");
@@ -433,6 +433,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 static void
 send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
 {
+#if PURPLE_VERSION_CHECK(2, 6, 0)
 	xmlnode *iq, *query;
 
 	iq = xmlnode_new("iq");
@@ -452,6 +453,31 @@ send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
 		"jabber-sending-xmlnode", gc, &iq);
 	if (iq != NULL)
 		xmlnode_free(iq);
+#else
+	PurplePluginProtocolInfo *prpl_info = NULL;
+	const char *STANZA = "<iq to='%s' id='123' type='get'>" \
+			      "<query xmlns='%s' mid='%s'%s/></iq>";
+	gchar *text = NULL, *s = NULL;
+
+	if (!msgid)
+		return;
+
+	if (gc)
+		prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
+
+	if (prpl_info && prpl_info->send_raw != NULL) {
+		if (rid)
+			s = g_strdup_printf("rid='*'");
+		else
+			s = g_strdup_printf("%c", '\0');
+		text = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_MESSAGES,
+								msgid, s);
+		prpl_info->send_raw(gc, text, strlen(text));
+		g_free(text);
+		g_free(s);
+	}
+
+#endif
 }
 
 static gboolean
@@ -472,9 +498,13 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		send = g_hash_table_lookup(params, "send");
 		account = purple_accounts_find(account_user, "prpl-jabber");
 		if (body && account) {
-			conv = purple_conversation_new (PURPLE_CONV_TYPE_IM, 
-							account, JUICK_JID);
-			purple_conversation_present(conv);
+			if ((conv = purple_find_conversation_with_account(
+					PURPLE_CONV_TYPE_IM, JUICK_JID,
+					account)) != NULL)
+				purple_conversation_present(conv);
+			else
+				conv = purple_conversation_new(
+					PURPLE_CONV_TYPE_IM, account,JUICK_JID);
 			gtkconv = PIDGIN_CONVERSATION(conv);
 			gc = purple_conversation_get_gc(gtkconv->active_conv);
 			if (reply[0] == '#') {

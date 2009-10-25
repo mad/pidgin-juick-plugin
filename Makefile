@@ -6,8 +6,8 @@ PURPLE_CFLAGS += $(shell pkg-config --cflags pidgin)
 # for win
 #PIDGIN_DIR=/home/mad/git/pidgin-clone/pidgin/plugins/
 #GTK_TOP=/home/mad/workspace/project/pidgin-dev/win32-dev/gtk_2_0/
-PIDGIN_DIR=../../pidgin-2.6.2/pidgin/plugins
-GTK_TOP=../../../win32-dev/gtk_2_0
+PIDGIN_DIR=../../pidgin-2.5.2/pidgin/plugins
+GTK_TOP=../../win32-dev/gtk_2_0
 #PIDGIN_DIR=../../workspace/pidgin-2.6.3/pidgin/plugins
 #GTK_TOP=../../../../workspace/win32-dev/gtk_2_0
 
