@@ -116,7 +116,9 @@ static gboolean
 make_juick_tag(GString *output, const gchar *account_user, gchar **current, 
 							int *tag_count)
 {
-	gchar *p = *current, *prev = NULL, *msgid, old_char, reply;
+	const char *JUICK_TAG =
+		"<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>";
+	gchar *p = *current, *prev = NULL, *msgid, old_char, reply = '\0';
 	int result = FALSE;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -137,20 +139,24 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	}
 	if (p == g_utf8_next_char(prev)) {
 		g_string_append_unichar(output, g_utf8_get_char(p));
-		*current = p;
 	} else if (*p) {
 		msgid = prev;
 		old_char = *p;
 		*p = '\0';
-		g_string_append_printf(output, 
-		  "<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>",
-		  account_user, reply, msgid, msgid);
+		g_string_append_printf(output, JUICK_TAG, account_user, reply,
+								msgid, msgid);
 		++*tag_count; ++*tag_count;
 		*p = old_char;
 		if (*p == ':' && reply == '@')
 			result = TRUE;
-		*current = p;
+	} else {
+		if (reply != '\0')
+			g_string_append_printf(output, JUICK_TAG, account_user,
+							reply, prev, prev);
+		else
+			g_string_append(output, prev);
 	}
+	*current = p;
 	return result;
 }
 
