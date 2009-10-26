@@ -15,7 +15,9 @@
  * Floor, Boston, MA 02110-1301, USA.
  */
 
+#ifndef PURPLE_PLUGINS
 #define PURPLE_PLUGINS
+#endif
 
 #include <ctype.h>
 #include <glib.h>
@@ -127,11 +129,12 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	reply = *prev;
 	p = g_utf8_next_char(p);
 	if (*prev == '@') {
-		while (p && (g_unichar_isalnum(g_utf8_get_char(p)) || 
+		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) || 
 			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
 			p = g_utf8_next_char(p);
 	} else if (*prev == '#') {
-		while (g_unichar_isdigit(g_utf8_get_char(p)) || *p == '/') {
+		while (*p && (g_unichar_isdigit(g_utf8_get_char(p)) ||
+								*p == '/')) {
 			if (*p == '/') 
 				reply = '#';
 			p = g_utf8_next_char(p);
@@ -381,6 +384,9 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	gboolean first = TRUE;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	if (!*packet)
+		return;
 
 	node = xmlnode_get_child(*packet, "query");
 	if (node) {
