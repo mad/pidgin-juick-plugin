@@ -504,13 +504,9 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		send = g_hash_table_lookup(params, "send");
 		account = purple_accounts_find(account_user, "prpl-jabber");
 		if (body && account) {
-			if ((conv = purple_find_conversation_with_account(
-					PURPLE_CONV_TYPE_IM, JUICK_JID,
-					account)) != NULL)
-				purple_conversation_present(conv);
-			else
-				conv = purple_conversation_new(
-					PURPLE_CONV_TYPE_IM, account,JUICK_JID);
+			conv = purple_conversation_new(
+				PURPLE_CONV_TYPE_IM, account,JUICK_JID);
+			purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
 			gc = purple_conversation_get_gc(gtkconv->active_conv);
 			if (reply[0] == '#') {
