@@ -44,6 +44,7 @@
 #define PREF_PREFIX "/plugins/core/juick-plugin"
 #define PREF_IS_HIGHLIGHTING_TAGS PREF_PREFIX "/is_highlighting_tags"
 #define PREF_IS_SHOW_MAX_MESSAGE PREF_PREFIX "/is_show_max_message"
+#define PREF_IS_SHOW_JUICK PREF_PREFIX "/is_show_juick"
 
 const char *IMAGE_PREFIX = "http://i.juick.com/p";
 
@@ -506,7 +507,8 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		if (body && account) {
 			conv = purple_conversation_new(
 				PURPLE_CONV_TYPE_IM, account,JUICK_JID);
-			purple_conversation_present(conv);
+			if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
+				purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
 			gc = purple_conversation_get_gc(gtkconv->active_conv);
 			if (reply[0] == '#') {
@@ -688,6 +690,10 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 						PREF_IS_SHOW_MAX_MESSAGE,
                                             ("Show max warning message"));
         purple_plugin_pref_frame_add(frame, ppref);
+        ppref = purple_plugin_pref_new_with_name_and_label(
+		PREF_IS_SHOW_JUICK, ("Show Juick conversation when click on " \
+					"juick tag in other conversation"));
+        purple_plugin_pref_frame_add(frame, ppref);
 
 	return frame;	
 }
@@ -795,6 +801,7 @@ init_plugin(PurplePlugin *plugin)
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
 	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);
+	purple_prefs_add_bool(PREF_IS_SHOW_JUICK, TRUE);
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
