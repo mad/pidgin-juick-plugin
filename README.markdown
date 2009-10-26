@@ -2,6 +2,7 @@
 
 [![www](http://img171.imageshack.us/img171/946/juick.th.png)](http://img171.imageshack.us/img171/946/juick.png)
 [![www](http://img38.imageshack.us/img38/3261/jubonologinru.th.png)](http://img38.imageshack.us/img38/3261/jubonologinru.png)
+[![www](http://img169.imageshack.us/img169/830/pidginrightclick.th.png)](http://img169.imageshack.us/img169/830/pidginrightclick.png)
 
 
 # Установка
