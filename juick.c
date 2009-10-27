@@ -19,6 +19,7 @@
 #define PURPLE_PLUGINS
 #endif
 
+#include <gdk/gdkkeysyms.h>
 #include <ctype.h>
 #include <glib.h>
 #include <string.h>
@@ -438,7 +439,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 }
 
 static void
-send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
+send_iq_about_post(PurpleConnection *gc, const char *msgid, gboolean rid)
 {
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	xmlnode *iq, *query;
@@ -483,7 +484,44 @@ send_juick_messages_iq(PurpleConnection *gc, const char *msgid, gboolean rid)
 		g_free(text);
 		g_free(s);
 	}
+#endif
+}
 
+static void
+send_iq_about_new_messages(PurpleConnection *gc)
+{
+#if PURPLE_VERSION_CHECK(2, 6, 0)
+	xmlnode *iq, *query;
+
+	iq = xmlnode_new("iq");
+	xmlnode_set_attrib(iq, "type", "get");
+	xmlnode_set_attrib(iq, "to", JUICK_JID);
+	xmlnode_set_attrib(iq, "id", "123");
+
+	query = xmlnode_new_child(iq, "query");
+	xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
+
+	purple_signal_emit(purple_connection_get_prpl(gc),
+		"jabber-sending-xmlnode", gc, &iq);
+	if (iq != NULL)
+		xmlnode_free(iq);
+#else
+	PurplePluginProtocolInfo *prpl_info = NULL;
+	const char *STANZA = "<iq to='%s' id='123' type='get'>" \
+			      "<query xmlns='%s'/></iq>";
+	gchar *text = NULL;
+
+	if (!msgid)
+		return;
+
+	if (gc)
+		prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
+
+	if (prpl_info && prpl_info->send_raw != NULL) {
+		text = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_MESSAGES);
+		prpl_info->send_raw(gc, text, strlen(text));
+		g_free(text);
+	}
 #endif
 }
 
@@ -493,6 +531,7 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	PidginConversation *gtkconv;
+	PurpleConvIm *convim;
 	PurpleConnection *gc;
 	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
 
@@ -510,13 +549,13 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
 				purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
-			gc = purple_conversation_get_gc(gtkconv->active_conv);
+			convim = PURPLE_CONV_IM(conv);
+			gc = purple_conversation_get_gc(
+					PIDGIN_CONVERSATION(conv)->active_conv);
 			if (reply[0] == '#') {
 				if (!send) {
-					send_juick_messages_iq(gc, body + 1,
-									FALSE);
-					send_juick_messages_iq(gc, body + 1,
-									TRUE);
+					send_iq_about_post(gc, body + 1, FALSE);
+					send_iq_about_post(gc, body + 1, TRUE);
 					gtk_text_buffer_set_text(
 					    gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
@@ -528,16 +567,12 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 					gtk_text_buffer_insert_at_cursor(
 					    gtkconv->entry_buffer, body, -1);
 				} else if (send && send[0] == 'i'){
-					serv_send_im(gc, JUICK_JID, body,
-							PURPLE_MESSAGE_SEND);
+					purple_conv_im_send(convim, body);
 				} else if (send && send[0] == 'p') {
-					serv_send_im(gc, JUICK_JID, reply,
-							PURPLE_MESSAGE_SEND);
+					purple_conv_im_send(convim, reply);
 				} else {
-					serv_send_im(gc, JUICK_JID, body,
-							PURPLE_MESSAGE_SEND);
-					serv_send_im(gc, JUICK_JID, reply,
-							PURPLE_MESSAGE_SEND);
+					purple_conv_im_send(convim, body);
+					purple_conv_im_send(convim, reply);
 				}
 				g_free(reply);
 			} else 
@@ -547,6 +582,37 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			return TRUE;
 		}
 	}
+	return FALSE;
+}
+
+static gboolean
+window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
+{
+	PurpleConversation *conv = (PurpleConversation *)data;
+	PurpleConvIm *convim = PURPLE_CONV_IM(conv);
+	PurpleConnection *gc = purple_conversation_get_gc(
+			PIDGIN_CONVERSATION(conv)->active_conv);
+
+	if (event->state & GDK_CONTROL_MASK) 
+		switch (event->keyval) {
+			case GDK_3:
+				purple_conv_im_send(convim, "#");
+				break;
+			case GDK_numbersign:
+				send_iq_about_new_messages(gc);
+				break;
+		}
+	return FALSE;
+}
+
+static gboolean
+add_key_handler_cb(PurpleConversation *conv)
+{
+	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+
+	/* Intercept keystrokes from the menu items */
+	g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
+				G_CALLBACK(window_keypress_cb), conv);
 	return FALSE;
 }
 
@@ -703,6 +769,7 @@ plugin_load(PurplePlugin *plugin)
 {
 
 	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
+
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb, 
                                                     juick_context_menu);
@@ -719,6 +786,9 @@ plugin_load(PurplePlugin *plugin)
 	purple_signal_connect(pidgin_conversations_get_handle(),
 				"displaying-im-msg", plugin,
 				PURPLE_CALLBACK(juick_on_displaying), NULL);
+	purple_signal_connect(purple_conversations_get_handle(),
+				"conversation-created", plugin,
+				PURPLE_CALLBACK(add_key_handler_cb), NULL);
 
 	/* Jabber signals */
 	if (jabber_handle) 
