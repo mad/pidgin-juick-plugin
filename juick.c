@@ -358,11 +358,12 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		*next = old_char;
 	}
 	g_free(bodyup);
-	if (first) {
-		if (midrid != NULL)
-			purple_util_chrreplace(midrid, '/', '#');
+	if (midrid != NULL) {
+		purple_util_chrreplace(midrid, '/', '#');
 		g_string_append_printf(output, " http://juick.com/%s\n",
 								   midrid);
+	}
+	if (first) {
 		if (replies)
 			g_string_append_printf(output, "Replies (%s)\n",
 								  replies);
@@ -545,7 +546,7 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		account = purple_accounts_find(account_user, "prpl-jabber");
 		if (body && account) {
 			conv = purple_conversation_new(
-				PURPLE_CONV_TYPE_IM, account,JUICK_JID);
+				PURPLE_CONV_TYPE_IM, account, JUICK_JID);
 			if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
 				purple_conversation_present(conv);
 			gtkconv = PIDGIN_CONVERSATION(conv);
@@ -589,8 +590,14 @@ static gboolean
 window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
 	PurpleConversation *conv = (PurpleConversation *)data;
-	PurpleConvIm *convim = PURPLE_CONV_IM(conv);
-	PurpleConnection *gc = purple_conversation_get_gc(
+	PurpleConvIm *convim;
+	PurpleConnection *gc;
+
+	if (!g_str_has_prefix(conv->name, JUICK_JID))
+		return FALSE;
+
+	convim = PURPLE_CONV_IM(conv);
+	gc = purple_conversation_get_gc(
 			PIDGIN_CONVERSATION(conv)->active_conv);
 
 	if (event->state & GDK_CONTROL_MASK) 
@@ -610,8 +617,13 @@ add_key_handler_cb(PurpleConversation *conv)
 {
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 
+	if (!g_str_has_prefix(conv->name, JUICK_JID))
+		return FALSE;
+
 	/* Intercept keystrokes from the menu items */
 	g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
+				G_CALLBACK(window_keypress_cb), conv);
+	g_signal_connect(G_OBJECT(gtkconv->imhtml), "key_press_event",
 				G_CALLBACK(window_keypress_cb), conv);
 	return FALSE;
 }
