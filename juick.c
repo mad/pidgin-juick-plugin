@@ -41,6 +41,7 @@
 #define JUICK_JID "juick@juick.com"
 #define JUBO_JID "jubo@nologin.ru"
 #define NS_JUICK_MESSAGES "http://juick.com/query#messages"
+#define NS_JUICK_USERS "http://juick.com/query#users"
 
 #define PREF_PREFIX "/plugins/core/juick-plugin"
 #define PREF_IS_HIGHLIGHTING_TAGS PREF_PREFIX "/is_highlighting_tags"
@@ -439,8 +440,17 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	}
 }
 
+typedef enum
+{
+	IQ_POST,
+	IQ_POST_REPLIES,
+	IQ_NEW_MESSAGES,
+	IQ_FRIENDS,
+	IQ_SUBSCRIBERS
+} IqStatus;
+
 static void
-send_iq_about_post(PurpleConnection *gc, const char *msgid, gboolean rid)
+send_iq(PurpleConnection *gc, const char *msgid, IqStatus iq_status)
 {
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	xmlnode *iq, *query;
@@ -451,13 +461,26 @@ send_iq_about_post(PurpleConnection *gc, const char *msgid, gboolean rid)
 	xmlnode_set_attrib(iq, "id", "123");
 
 	query = xmlnode_new_child(iq, "query");
-	xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
-	if (msgid) {
-		xmlnode_set_attrib(query, "mid", msgid);
-		if (rid)
-			xmlnode_set_attrib(query, "rid", "*");
+	switch(iq_status) {
+		case IQ_POST:
+			xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
+			if (msgid)
+				xmlnode_set_attrib(query, "mid", msgid);
+			break;
+		case IQ_POST_REPLIES:
+			xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
+			if (msgid) {
+				xmlnode_set_attrib(query, "mid", msgid);
+				xmlnode_set_attrib(query, "rid", "*");
+			}
+			break;
+		case IQ_NEW_MESSAGES:
+			xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
+			break;
+		case IQ_FRIENDS: case IQ_SUBSCRIBERS:
+			xmlnode_set_namespace(query, NS_JUICK_USERS);
+			break;
 	}
-
 	purple_signal_emit(purple_connection_get_prpl(gc),
 		"jabber-sending-xmlnode", gc, &iq);
 	if (iq != NULL)
@@ -466,7 +489,7 @@ send_iq_about_post(PurpleConnection *gc, const char *msgid, gboolean rid)
 	PurplePluginProtocolInfo *prpl_info = NULL;
 	const char *STANZA = "<iq to='%s' id='123' type='get'>" \
 			      "<query xmlns='%s' mid='%s'%s/></iq>";
-	gchar *text = NULL, *s = NULL;
+	gchar *text = NULL, *s = NULL, *s1 = NULL;
 
 	if (!msgid)
 		return;
@@ -474,55 +497,28 @@ send_iq_about_post(PurpleConnection *gc, const char *msgid, gboolean rid)
 	if (gc)
 		prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
 
-	if (prpl_info && prpl_info->send_raw != NULL) {
-		if (rid)
-			s = g_strdup_printf("rid='*'");
-		else
-			s = g_strdup_printf("%c", '\0');
-		text = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_MESSAGES,
-								msgid, s);
-		prpl_info->send_raw(gc, text, strlen(text));
-		g_free(text);
-		g_free(s);
-	}
-#endif
-}
-
-static void
-send_iq_about_new_messages(PurpleConnection *gc)
-{
-#if PURPLE_VERSION_CHECK(2, 6, 0)
-	xmlnode *iq, *query;
-
-	iq = xmlnode_new("iq");
-	xmlnode_set_attrib(iq, "type", "get");
-	xmlnode_set_attrib(iq, "to", JUICK_JID);
-	xmlnode_set_attrib(iq, "id", "123");
-
-	query = xmlnode_new_child(iq, "query");
-	xmlnode_set_namespace(query, NS_JUICK_MESSAGES);
-
-	purple_signal_emit(purple_connection_get_prpl(gc),
-		"jabber-sending-xmlnode", gc, &iq);
-	if (iq != NULL)
-		xmlnode_free(iq);
-#else
-	PurplePluginProtocolInfo *prpl_info = NULL;
-	const char *STANZA = "<iq to='%s' id='123' type='get'>" \
-			      "<query xmlns='%s'/></iq>";
-	gchar *text = NULL;
-
-	if (!msgid)
+	if (!prpl_info || prpl_info->send_raw == NULL)
 		return;
-
-	if (gc)
-		prpl_info = PURPLE_PLUGIN_PROTOCOL_INFO(gc->prpl);
-
-	if (prpl_info && prpl_info->send_raw != NULL) {
-		text = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_MESSAGES);
-		prpl_info->send_raw(gc, text, strlen(text));
-		g_free(text);
+	switch iq_status {
+		case IQ_POST, IQ_POST_REPLIES, IQ_NEW_MESSAGES:
+			s = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_MESSAGES);
+		case IQ_POST:
+			s1 = g_strdup_printf(" mid='%s' ", msgid);
+			text = g_strdup_printf(s, s1);
+			break;
+		case IQ_POST_REPLIES:
+			s1 = g_strdup_printf(" mid='%s' rid='*' ", msgid);
+			text = g_strdup_printf(s, s1);
+			break;
+		case IQ_NEW_MESSAGES:
+			break;
+		case IQ_FRIENDS, IQ_SUBSCRIBERS:
+			text = g_strdup_printf(STANZA, JUICK_JID, NS_JUICK_USERS);
+			break;
 	}
+	prpl_info->send_raw(gc, text, strlen(text));
+	g_free(text);
+	g_free(s); g_free(s1);
 #endif
 }
 
@@ -555,8 +551,8 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 					PIDGIN_CONVERSATION(conv)->active_conv);
 			if (reply[0] == '#') {
 				if (!send) {
-					send_iq_about_post(gc, body + 1, FALSE);
-					send_iq_about_post(gc, body + 1, TRUE);
+					send_iq(gc, body + 1, IQ_POST);
+					send_iq(gc, body + 1, IQ_POST_REPLIES);
 					gtk_text_buffer_set_text(
 					    gtkconv->entry_buffer, body, -1);
 				} else if (send[0] == 'p')
@@ -605,8 +601,8 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 			case GDK_3:
 				purple_conv_im_send(convim, "#");
 				break;
-			case GDK_numbersign:
-				send_iq_about_new_messages(gc);
+			case GDK_2:
+				send_iq(gc, NULL, IQ_NEW_MESSAGES);
 				break;
 		}
 	return FALSE;
