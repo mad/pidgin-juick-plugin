@@ -5,6 +5,10 @@
 [![www](http://img169.imageshack.us/img169/830/pidginrightclick.th.png)](http://img169.imageshack.us/img169/830/pidginrightclick.png)
 
 
+# Скачивание
+
+Скачать разные версии жуйкплагина под разные версии пиджина можно на странице [Downloads](http://github.com/mad/pidgin-juick-plugin/downloads)
+
 # Установка
 
 Установить плагин можно одним из способов:
