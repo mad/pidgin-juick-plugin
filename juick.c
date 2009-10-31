@@ -544,6 +544,7 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 		gtk_text_buffer_insert_at_cursor(
 				gtkconv->entry_buffer, text, -1);
 		g_free(text);
+		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 		return;
 	}
 	if (reply == '#') {
