@@ -145,7 +145,7 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 		}
 	}
 	if (p == g_utf8_next_char(prev)) {
-		g_string_append_unichar(output, g_utf8_get_char(p));
+		g_string_append_unichar(output, g_utf8_get_char(prev));
 	} else if (*p) {
 		msgid = prev;
 		old_char = *p;
