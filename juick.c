@@ -240,6 +240,9 @@ static char
 	gchar *tmp, *tmp1;
 	time_t t;
 
+	if (field == NULL)
+		return NULL;
+
 	tmp = g_strdup(field);
 	purple_util_chrreplace(tmp, ' ', 'T');
 	tmp1 = g_strdup_printf("%sZ", tmp);
