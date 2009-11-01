@@ -119,7 +119,7 @@ highlighting_juick_message_tags(GString *output, gchar **current,
 }
 
 static gboolean
-make_juick_tag(GString *output, const gchar *account_user, gchar **current, 
+make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 							int *tag_count)
 {
 	const char *JUICK_TAG =
@@ -133,13 +133,13 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	reply = *prev;
 	p = g_utf8_next_char(p);
 	if (*prev == '@') {
-		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) || 
+		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) ||
 			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
 			p = g_utf8_next_char(p);
 	} else if (*prev == '#') {
 		while (*p && (g_unichar_isdigit(g_utf8_get_char(p)) ||
 								*p == '/')) {
-			if (*p == '/') 
+			if (*p == '/')
 				reply = '#';
 			p = g_utf8_next_char(p);
 		}
@@ -182,9 +182,9 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	if( (!strcmp(who, JUICK_JID) && 
-             !strcmp(who, JUBO_JID)) || 
-                (flags & PURPLE_MESSAGE_SYSTEM) ) 
+	if( (!strcmp(who, JUICK_JID) &&
+             !strcmp(who, JUBO_JID)) ||
+                (flags & PURPLE_MESSAGE_SYSTEM) )
 	{
 		return FALSE;
 	}
@@ -201,7 +201,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 			tag_count++;
 		if (tag_count > tag_max) {
 			add_warning_message(output, p, tag_max);
-			break;			
+			break;
 		}
 		if (p != src) {
 			prev = g_utf8_prev_char(p);
@@ -275,7 +275,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	mid = xmlnode_get_attrib(node, "mid");
 	rid = xmlnode_get_attrib(node, "rid");
 	ts = xmlnode_get_attrib(node, "ts");
-	ts_ = date_reformat(ts);
+	if (ts) {
+		ts_ = date_reformat(ts);
+	}
 	replies = xmlnode_get_attrib(node, "replies");
 	mood = xmlnode_get_attrib(node, "mood");
 	replyto = xmlnode_get_attrib(node, "replyto");
@@ -307,9 +309,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		// FIXME: how to do empty string?
 		s = g_strdup_printf("%c", '\0');
 	g_free(tags);
-	if (rid)
+	if (rid && mid)
 		midrid = g_strdup_printf("%s/%s", mid, rid);
-	else
+	else if (mid)
 		midrid = g_strdup_printf("%s", mid);
 	n = node->parent;
 	if (n)
@@ -345,7 +347,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			ts_, uname, replyto, s, comment, body, midrid);
 	else
 		g_string_append_printf(output, "%s @%s:%s\n%s%s\n#%s",
-					     ts_, uname, s, url, body, midrid);
+				       ts_ ? ts_ : "", uname, s,
+				       url ? url : "", body,
+				       midrid ? midrid : "");
 	g_free(s);
 	g_free(ts_);
 	g_free(body);
@@ -370,7 +374,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 			g_string_append_printf(output, "Replies (%s)\n",
 								  replies);
 		if (rid && strcmp(rid, "1") && !replyto)
-			g_string_prepend(output, 
+			g_string_prepend(output,
 				"Continuation of the previous replies\n");
 	} else
 		g_string_append(output, "\n");
@@ -396,7 +400,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	node = xmlnode_get_child(*packet, "query");
 	if (node) {
 		node = xmlnode_get_child(node, "juick");
-	} else 
+	} else
 		node = xmlnode_get_child(*packet, "juick");
 
 	from = xmlnode_get_attrib(*packet, "from");
@@ -427,7 +431,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	} else {
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
-		if (node && from && 
+		if (node && from &&
 			((strcmp(from, JUICK_JID) == 0) ||
 			 (strcmp(from, JUBO_JID) == 0))) {
 			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM,
@@ -613,7 +617,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	gc = purple_conversation_get_gc(
 			PIDGIN_CONVERSATION(conv)->active_conv);
 
-	if (event->state & GDK_CONTROL_MASK) 
+	if (event->state & GDK_CONTROL_MASK)
 		switch (event->keyval) {
 			case GDK_3:
 				purple_conv_im_send(convim, "#");
@@ -837,7 +841,7 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 		PREF_IS_INSERT_ONLY, ("Insert when left click, don't show"));
         purple_plugin_pref_frame_add(frame, ppref);
 
-	return frame;	
+	return frame;
 }
 
 static gboolean
@@ -847,16 +851,16 @@ plugin_load(PurplePlugin *plugin)
 	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
-	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb, 
+	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb,
                                                     juick_context_menu);
 #else
-	memcpy(&juick_ops, purple_notify_get_ui_ops(), 
+	memcpy(&juick_ops, purple_notify_get_ui_ops(),
                            sizeof(PurpleNotifyUiOps));
 	saved_notify_uri = juick_ops.notify_uri;
 	juick_ops.notify_uri = juick_notify_uri;
 	purple_notify_set_ui_ops(&juick_ops);
 #endif
-	purple_signal_connect(purple_get_core(), "uri-handler", plugin, 
+	purple_signal_connect(purple_get_core(), "uri-handler", plugin,
                              PURPLE_CALLBACK(juick_uri_handler), NULL);
 
 	purple_signal_connect(pidgin_conversations_get_handle(),
@@ -867,7 +871,7 @@ plugin_load(PurplePlugin *plugin)
 				PURPLE_CALLBACK(add_key_handler_cb), NULL);
 
 	/* Jabber signals */
-	if (jabber_handle) 
+	if (jabber_handle)
 		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode",
 					plugin,
 					PURPLE_CALLBACK(xmlnode_received_cb),
@@ -884,10 +888,10 @@ plugin_unload(PurplePlugin *plugin)
 	juick_ops.notify_uri = saved_notify_uri;
 	purple_notify_set_ui_ops(&juick_ops);
 #endif
-	purple_signal_disconnect(purple_get_core(), "uri-handler", plugin, 
+	purple_signal_disconnect(purple_get_core(), "uri-handler", plugin,
                                       PURPLE_CALLBACK(juick_uri_handler));
 
-	purple_signal_disconnect(purple_conversations_get_handle(), 
+	purple_signal_disconnect(purple_conversations_get_handle(),
 					"displaying-im-msg", plugin,
 					PURPLE_CALLBACK(juick_on_displaying));
 
@@ -956,3 +960,9 @@ init_plugin(PurplePlugin *plugin)
 }
 
 PURPLE_INIT_PLUGIN(juick, init_plugin, info)
+
+
+// Local Variables:
+// c-basic-offset: 8
+// indent-tabs-mode: t
+// End:
