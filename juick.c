@@ -384,6 +384,24 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(midrid);
 }
 
+static xmlnode *
+make_message(const gchar *from, const gchar *to, const gchar *body)
+{
+	xmlnode *node, *n;
+
+	node = xmlnode_new("message");
+	xmlnode_set_attrib(node, "type", "chat");
+	xmlnode_set_attrib(node, "from", from);
+	xmlnode_set_attrib(node, "to", to);
+	xmlnode_set_attrib(node, "id", "123");
+
+	n = xmlnode_new_child(node, "body");
+	xmlnode_set_namespace(n, "jabber:client");
+	xmlnode_insert_data(n, body, -1);
+
+	return node;
+}
+
 static void
 xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
@@ -391,8 +409,6 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	const char *from;
 	gchar *s = NULL, *s1 = NULL;
 	GString *output = NULL;
-	PurpleConversation *conv;
-	PurpleMessageFlags flags;
 	gboolean first = TRUE;
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -414,36 +430,27 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		node = xmlnode_get_next_twin(node);
 		first = FALSE;
 	}
-	flags = PURPLE_MESSAGE_RECV | PURPLE_MESSAGE_NOTIFY;
 	if (output->len != 0) {
-		conv = purple_conversation_new(PURPLE_CONV_TYPE_IM, gc->account,
-									  from);
 		s = g_string_free(output, FALSE);
-		// For im history
-		s1 = purple_strdup_withhtml(s);
-		// Send message
-		purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name, s1,
-							flags, time(NULL));
-		// Make sound
-		purple_signal_emit(purple_conversations_get_handle(),
-				"received-im-msg", gc->account, conv->name, "",
-				conv, flags);
+		s1 = purple_unescape_html(s);
+		node = make_message(from,
+				xmlnode_get_attrib(*packet, "to"), s1);
 		g_free(s); g_free(s1);
 		xmlnode_free(*packet);
-		*packet = NULL;
+		*packet = node;
 	} else {
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from &&
 			((strcmp(from, JUICK_JID) == 0) ||
 			 (strcmp(from, JUBO_JID) == 0))) {
-			conv = purple_conversation_new(PURPLE_CONV_TYPE_IM,
-							gc->account, from);
 			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
 								       "code"));
-			purple_conv_im_write(PURPLE_CONV_IM(conv), conv->name,
-							  s, flags, time(NULL));
+			node = make_message(from,
+					xmlnode_get_attrib(*packet, "to"), s);
 			g_free(s);
+			xmlnode_free(*packet);
+			*packet = node;
 		}
 	}
 }
