@@ -4,49 +4,36 @@
 [![www](http://img38.imageshack.us/img38/3261/jubonologinru.th.png)](http://img38.imageshack.us/img38/3261/jubonologinru.png)
 [![www](http://img169.imageshack.us/img169/830/pidginrightclick.th.png)](http://img169.imageshack.us/img169/830/pidginrightclick.png)
 
-
-# Скачивание
-
-Скачать разные версии жуйкплагина под разные версии пиджина можно на странице [Downloads](http://github.com/mad/pidgin-juick-plugin/downloads)
-
 # Установка
 
 Установить плагин можно одним из способов:
 
-- Скачать архив:
+- Скачать нужную версию плагина ([downloads](http://github.com/mad/pidgin-juick-plugin/downloads)):
 
-        wget http://github.com/pktfag/pidgin-juick-plugin/tarball/master
-        tar xzf pktfag-pidgin-juick-plugin-*.tar.gz
-        cd pktfag-pidgin-juick-plugin*
+        wget http://github.com/mad/pidgin-juick-plugin/downloads/juick.so
         cp juick.so ~/.purple/plugins/
 
     пользователи Windows, копируйте в папку `%APPDATA%\\.purple\plugins\`
 
-- Создать локальный репозиторий:
+- Собрать из исходников (потребуется dev хидеры libpurple и pidgin):
 
-        git clone git://github.com/pktfag/pidgin-juick-plugin.git
+        git clone git://github.com/mad/pidgin-juick-plugin.git
         cd pidgin-juick-plugin
+        make
         cp juick.so ~/.purple/plugins/
 
 Для активации плагина откройте окно пиджина, и нажмите Ctrl+U, появится окно
 со списком плагинов - напротив Juick 0.2 поставьте галочку.
 
-# Компиляция плагина
+# Отличия от плагина mad (v0.1)
 
-Для того что бы скомпилировать плагин, наберите (в каталоге с плагином):
-
-    make
-
-если всё пройдёт удачно, то в текущем каталоге появится файл juick.so
-
-# Отличия от плагина mad
  1. Жуйктеги проставляются для длинных сообщений, в которых общее число тегов > 100;
  2. Проставляется реальное время каждого сообщения;
  3. Работает с ботом jubo@nologin.ru;
  4. UTF8 для внутренней обработки сообщений, в результате, правильно работает на windows;
- 5. Отсутствуют аватары и горячие клавиши, но это временно :);
 
-Тестировался плагин на pidgin 2.6, но должен работать на pidgin 2.5, если это не так, то сообщайте.
+Тестировался плагин на pidgin 2.6, но должен работать на pidgin 2.5, если это
+не так, то сообщайте [сюда](http://juick.com/pktfag) или [сюда](http://juick.com/mad).
 
 Конфликтует с плагином convcolors (Conversation Colors - Цвета беседы). Поэтому для работы плагина Juick, надо отключать плагин convcolors.
 
@@ -55,4 +42,3 @@
  2. Добавить горячие клавиши;
  3. Добавить аватары;
  4. Добавить загрузку превью картинок;
-
