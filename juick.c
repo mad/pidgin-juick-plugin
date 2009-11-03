@@ -40,6 +40,8 @@
 #define DBGID "juick"
 #define JUICK_JID "juick@juick.com"
 #define JUBO_JID "jubo@nologin.ru"
+
+#define WEBPAGE "http://juick.com/"
 #define NS_JUICK_MESSAGES "http://juick.com/query#messages"
 #define NS_JUICK_USERS "http://juick.com/query#users"
 
@@ -553,16 +555,37 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 
 	text = g_strconcat(body, " ", NULL);
 
-	is_insert_only = is_insert_only && !send;
-	if ((send && g_strrstr(send, "'i'")) || is_insert_only) {
+	if ((send && !strcmp(send, "'i'")) || (is_insert_only && !send)) {
 		gtk_text_buffer_insert_at_cursor(
 				gtkconv->entry_buffer, text, -1);
 		g_free(text);
 		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 		return;
 	}
+	if (send && !strcmp(send, "'sub'")) {
+		s = g_strconcat("S ", body, NULL);
+		purple_conv_im_send(convim, s);
+		g_free(s);
+		g_free(text);
+		return;
+	}
+	if (send && !strcmp(send, "'usub'")) {
+		s = g_strconcat("U ", body, NULL);
+		purple_conv_im_send(convim, s);
+		g_free(s);
+		g_free(text);
+		return;
+	}
+	if (send && !strcmp(send, "'web'")) {
+		s = g_strconcat(WEBPAGE, body + 1, NULL);
+		purple_notify_uri(NULL, s);
+		g_free(s);
+		g_free(text);
+		return;
+	}
 	if (reply == '#') {
-		if ((send && g_strrstr(send, "'s'")) || !is_insert_only) {
+		if ((send && !strcmp(send, "'s'")) ||
+						(!is_insert_only && !send)) {
 			send_iq(gc, body + 1, IQ_POST);
 			send_iq(gc, body + 1, IQ_POST_REPLIES);
 			gtk_text_buffer_set_text(
@@ -570,12 +593,13 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 		}
 	} else if (reply == '@') {
 		s = g_strdup_printf("%s+", body);
-		if ((send && g_strrstr(send, "'s'")) || !is_insert_only) {
+		if (send && strcmp(send, "'ui'") == 0) {
 			purple_conv_im_send(convim, body);
+		} else if (send && strcmp(send, "'up'") == 0) {
 			purple_conv_im_send(convim, s);
-		} else if (send && g_strrstr(send, "'ui'")) {
+		} else if ((send && strcmp(send, "'s'") == 0) ||
+							!is_insert_only) {
 			purple_conv_im_send(convim, body);
-		} else if (send && g_strrstr(send, "'up'")) {
 			purple_conv_im_send(convim, s);
 		}
 		g_free(s);
@@ -593,7 +617,7 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 	PurpleConversation *conv = NULL;
 	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
 
-	purple_debug_info(DBGID, "juick_uri_handler %s\n", proto);
+	purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, proto);
 
 	if (g_ascii_strcasecmp(proto, "j") == 0) {
 		body = g_hash_table_lookup(params, "body");
@@ -700,7 +724,10 @@ typedef enum {
 	JUICK_LINK_SHOW,
 	JUICK_LINK_INSERT,
 	JUICK_LINK_USER_INFO,
-	JUICK_LINK_USER_POSTS
+	JUICK_LINK_USER_POSTS,
+	JUICK_LINK_SUBSCRIBE,
+	JUICK_LINK_UNSUBSCRIBE,
+	JUICK_LINK_WEBPAGE
 } JuickLinkStatus;
 
 static void
@@ -710,7 +737,7 @@ process_link(GtkIMHtmlLink *link, JuickLinkStatus status)
 	const gchar *send = "&send=";
         const gchar *url = gtk_imhtml_link_get_url(link);
 
-	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+	purple_debug_info(DBGID, "%s, %d\n", __FUNCTION__, status);
 
 	switch(status){
 		case JUICK_LINK_SHOW:
@@ -724,6 +751,15 @@ process_link(GtkIMHtmlLink *link, JuickLinkStatus status)
 			break;
 		case JUICK_LINK_USER_POSTS:
 			murl = replace_or_insert(url, send, "'up'");
+			break;
+		case JUICK_LINK_SUBSCRIBE:
+			murl = replace_or_insert(url, send, "'sub'");
+			break;
+		case JUICK_LINK_UNSUBSCRIBE:
+			murl = replace_or_insert(url, send, "'usub'");
+			break;
+		case JUICK_LINK_WEBPAGE:
+			murl = replace_or_insert(url, send, "'web'");
 			break;
 	}
 	if (murl != NULL)
@@ -755,6 +791,24 @@ menu_user_posts_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 	process_link(link, JUICK_LINK_USER_POSTS);
 }
 
+static void
+menu_subscribe_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+	process_link(link, JUICK_LINK_SUBSCRIBE);
+}
+
+static void
+menu_unsubscribe_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+	process_link(link, JUICK_LINK_UNSUBSCRIBE);
+}
+
+static void
+menu_webpage_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+	process_link(link, JUICK_LINK_WEBPAGE);
+}
+
 static gboolean
 juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 {
@@ -782,6 +836,10 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		g_signal_connect(G_OBJECT(item_i), "activate",
 				G_CALLBACK(menu_insert_activate_cb), link);
 
+		item = gtk_menu_item_new_with_mnemonic("See user _webpage");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_webpage_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See user _info");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
@@ -790,6 +848,16 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 				G_CALLBACK(menu_user_posts_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic(
+						"_Subscribe to this user");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_subscribe_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic(
+						"_Unsubscribe from this user");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_unsubscribe_activate_cb), link);
 	} else if (g_strrstr(url, "&reply=#")) {
 		item_s = gtk_image_menu_item_new_with_mnemonic("See _replies");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_s);
@@ -805,6 +873,20 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		else
 			gtk_image_menu_item_set_image(
 					GTK_IMAGE_MENU_ITEM(item_s), img);
+		item = gtk_menu_item_new_with_mnemonic("See post _webpage");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_webpage_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic(
+						"_Subscribe to this post");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_subscribe_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic(
+						"_Unsubscribe from this post");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_unsubscribe_activate_cb), link);
 	} else {
 		return FALSE;
 	}
