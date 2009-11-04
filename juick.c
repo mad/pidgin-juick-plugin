@@ -542,6 +542,19 @@ send_iq(PurpleConnection *gc, const gchar *msgid, IqStatus iq_status)
 #endif
 }
 
+static gchar *
+str_post_add_prefix(const gchar *prefix, const gchar *str)
+{
+	gchar *s, *s1;
+	if ((s = strchr(str, '/')) == NULL)
+		return g_strconcat(prefix, str, NULL);
+	else {
+		s = g_strndup(str, s - str);
+		s1 = g_strconcat(prefix, s, NULL);
+		g_free(s);
+		return s1;
+	}
+}
 static void
 send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 							const gchar reply)
@@ -551,7 +564,7 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	PurpleConnection *gc = purple_conversation_get_gc(
 			PIDGIN_CONVERSATION(conv)->active_conv);
 	gboolean is_insert_only = purple_prefs_get_bool(PREF_IS_INSERT_ONLY);
-	gchar *s = NULL, *text = NULL;
+	gchar *s = NULL, *s1, *text = NULL;
 
 	text = g_strconcat(body, " ", NULL);
 
@@ -563,23 +576,24 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 		return;
 	}
 	if (send && !strcmp(send, "'sub'")) {
-		s = g_strconcat("S ", body, NULL);
+		s = str_post_add_prefix("S ", body);
 		purple_conv_im_send(convim, s);
 		g_free(s);
 		g_free(text);
 		return;
 	}
 	if (send && !strcmp(send, "'usub'")) {
-		s = g_strconcat("U ", body, NULL);
+		s = str_post_add_prefix("U ", body);
 		purple_conv_im_send(convim, s);
 		g_free(s);
 		g_free(text);
 		return;
 	}
 	if (send && !strcmp(send, "'web'")) {
-		s = g_strconcat(WEBPAGE, body + 1, NULL);
-		purple_notify_uri(NULL, s);
-		g_free(s);
+		s = purple_strreplace(body, "/", "#");
+		s1 = g_strconcat(WEBPAGE, s + 1, NULL);
+		purple_notify_uri(NULL, s1);
+		g_free(s); g_free(s1);
 		g_free(text);
 		return;
 	}
