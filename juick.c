@@ -184,8 +184,8 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	if( (!strcmp(who, JUICK_JID) &&
-             !strcmp(who, JUBO_JID)) ||
+	if( (!g_str_has_prefix(who, JUICK_JID) &&
+		!g_str_has_prefix(who, JUBO_JID)) ||
                 (flags & PURPLE_MESSAGE_SYSTEM) )
 	{
 		return FALSE;
@@ -448,8 +448,8 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from &&
-			((strcmp(from, JUICK_JID) == 0) ||
-			 (strcmp(from, JUBO_JID) == 0))) {
+			(!strcmp(from, JUICK_JID) ||
+			 !strcmp(from, JUBO_JID))) {
 			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
 								       "code"));
 			node = make_message(from,
@@ -611,11 +611,11 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 		}
 	} else if (reply == '@') {
 		s = g_strdup_printf("%s+", body);
-		if (send && strcmp(send, "'ui'") == 0) {
+		if (send && !strcmp(send, "'ui'")) {
 			purple_conv_im_send(convim, body);
-		} else if (send && strcmp(send, "'up'") == 0) {
+		} else if (send && !strcmp(send, "'up'")) {
 			purple_conv_im_send(convim, s);
-		} else if ((send && strcmp(send, "'s'") == 0) ||
+		} else if ((send && !strcmp(send, "'s'")) ||
 							!is_insert_only) {
 			purple_conv_im_send(convim, body);
 			purple_conv_im_send(convim, s);
