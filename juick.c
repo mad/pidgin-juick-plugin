@@ -125,7 +125,7 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 	gchar *p = *current, *prev = NULL, *msgid, old_char, reply = '\0';
 	int result = FALSE;
 
-	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+//	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
 	prev = p;
 	reply = *prev;
@@ -256,8 +256,8 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	xmlnode *n, *bodyupn = NULL, *tagn;
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto, *attach;
 	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
-	      *tag = NULL, *s = NULL, *midrid = NULL, *comment = NULL,
-	      *ts_ = NULL, *url = NULL, old_char = '\0';
+	      *tag = NULL, *s = NULL, *tagsmood = NULL, *midrid = NULL,
+	      *comment = NULL, *ts_ = NULL, *url = NULL, old_char = '\0';
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
@@ -301,14 +301,11 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	}
 	// purple_debug_info(DBGID, "Join tags and mood\n");
 	if (tags && mood)
-		s = g_strdup_printf(" %s mood: %s", tags, mood);
+		tagsmood = g_strdup_printf(" %s mood: %s", tags, mood);
 	else if (tags)
-		s = g_strdup_printf(" %s", tags);
+		tagsmood = g_strdup_printf(" %s", tags);
 	else if (mood)
-		s = g_strdup_printf(" mood: %s", mood);
-	else
-		// FIXME: how to do empty string?
-		s = g_strdup_printf("%c", '\0');
+		tagsmood = g_strdup_printf(" mood: %s", mood);
 	g_free(tags);
 	if (rid && mid)
 		midrid = g_strdup_printf("%s/%s", mid, rid);
@@ -338,20 +335,19 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	if (attach && mid && !g_str_has_prefix(body, IMAGE_PREFIX))
 		url = g_strdup_printf("%s/%s.%s\n", IMAGE_PREFIX,
 							mid, attach);
-	if (!url)
-		// FIXME: how to do empty string?
-		url = g_strdup_printf("%c", '\0');
 	purple_debug_info(DBGID, "Join all strings\n");
-	if (replyto && comment)
-		g_string_append_printf(output,
-			"%s @%s: reply to %s%s\n%s\n%s\n#%s",
-			ts_, uname, replyto, s, comment, body, midrid);
-	else
-		g_string_append_printf(output, "%s @%s:%s\n%s%s\n#%s",
-				       ts_ ? ts_ : "", uname, s,
-				       url ? url : "", body,
-				       midrid ? midrid : "");
+	if (uname && replyto)
+		s = g_strconcat("@", uname, ": reply to ", replyto, NULL);
+	else if (uname)
+		s = g_strconcat("@", uname, ":", NULL);
+	g_string_append_printf(output, "%s %s%s\n%s%s\n#%s",
+			       ts_ ? ts_ : "",
+			       s ? s : "",
+			       tagsmood ? tagsmood : "",
+			       url ? url : "", body,
+			       midrid ? midrid : "");
 	g_free(s);
+	g_free(tagsmood);
 	g_free(ts_);
 	g_free(body);
 	g_free(url);
