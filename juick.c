@@ -67,19 +67,15 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 
 	s = purple_markup_strip_html(src);
 	s1 = g_utf8_strchr(s, -1, '\n');
-	if (s) {
+	if (s1) {
 		s1 = g_utf8_next_char(s1);
 		g_string_append_len(output, s, s1 - s);
 		if (is_show_max_message)
 			g_string_append_printf(output,
 					MORETAGSNOTPLACING, tag_max);
 		g_string_append(output, s1);
-	} else {
-		if (is_show_max_message)
-			g_string_append_printf(output,
-					MORETAGSNOTPLACING, tag_max);
+	} else if (s)
 		g_string_append(output, s);
-	}
 	g_free(s);
 }
 
