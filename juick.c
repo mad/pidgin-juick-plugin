@@ -256,7 +256,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	xmlnode *n, *bodyupn = NULL, *tagn;
 	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto, *attach;
 	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
-	      *tag = NULL, *s = NULL, *tagsmood = NULL, *midrid = NULL,
+	      *tag = NULL, *s = NULL, *s1, *tagsmood = NULL, *midrid = NULL,
 	      *comment = NULL, *ts_ = NULL, *url = NULL, old_char = '\0';
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
@@ -340,6 +340,11 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		s = g_strconcat("@", uname, ": reply to ", replyto, NULL);
 	else if (uname)
 		s = g_strconcat("@", uname, ":", NULL);
+	if (comment) {
+		s1 = g_strconcat(s, "\n", comment, NULL);
+		g_free(s);
+		s = s1;
+	}
 	g_string_append_printf(output, "%s %s%s\n%s%s\n#%s",
 			       ts_ ? ts_ : "",
 			       s ? s : "",
