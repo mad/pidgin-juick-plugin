@@ -119,6 +119,34 @@ highlighting_juick_message_tags(GString *output, gchar **current,
 }
 
 static gboolean
+get_juick_tag(gchar *text, gchar **result)
+{
+	gchar *p = text;
+	gboolean is_reply = FALSE;
+
+	if (text == NULL) {
+		*result = NULL;
+		return FALSE;
+	}
+
+	p = g_utf8_next_char(p);
+	if (*text == '@') {
+		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) ||
+			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
+			p = g_utf8_next_char(p);
+	} else if (*text == '#') {
+		while (*p && (g_unichar_isdigit(g_utf8_get_char(p)) ||
+								*p == '/')) {
+			if (*p == '/')
+				is_reply = TRUE;
+			p = g_utf8_next_char(p);
+		}
+	}
+	*result = p;
+	return is_reply;
+}
+
+static gboolean
 make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 							int *tag_count)
 {
@@ -126,24 +154,15 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 		"<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>";
 	gchar *p = *current, *prev = NULL, *msgid, old_char, reply = '\0';
 	int result = FALSE;
+	gboolean is_reply;
 
 //	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
 	prev = p;
 	reply = *prev;
-	p = g_utf8_next_char(p);
-	if (*prev == '@') {
-		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) ||
-			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
-			p = g_utf8_next_char(p);
-	} else if (*prev == '#') {
-		while (*p && (g_unichar_isdigit(g_utf8_get_char(p)) ||
-								*p == '/')) {
-			if (*p == '/')
-				reply = '#';
-			p = g_utf8_next_char(p);
-		}
-	}
+	is_reply = get_juick_tag(prev, &p);
+	if (is_reply)
+		reply = '#';
 	if (p == g_utf8_next_char(prev)) {
 		g_string_append_unichar(output, g_utf8_get_char(prev));
 	} else if (*p) {
@@ -558,6 +577,26 @@ str_post_add_prefix(const gchar *prefix, const gchar *str)
 		return s1;
 	}
 }
+
+void change_text_at_start(GtkTextBuffer *buffer, const gchar* text) {
+	GtkTextIter start, end;
+	gchar *str, *p;
+
+	gtk_text_buffer_get_bounds(buffer, &start, &end);
+	str = gtk_text_buffer_get_text(buffer, &start, &end, TRUE);
+	get_juick_tag(str, &p);
+
+	if (p == NULL || p == g_utf8_next_char(str)) {
+		gtk_text_buffer_insert_at_cursor(buffer, text, -1);
+	} else {
+		gtk_text_buffer_get_iter_at_offset(buffer, &end,
+					g_utf8_pointer_to_offset(str, p));
+		gtk_text_buffer_delete(buffer, &start, &end);
+		gtk_text_buffer_get_start_iter(buffer, &start);
+		gtk_text_buffer_insert(buffer, &start, text, strlen(text) - 1);
+	}
+}
+
 static void
 send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 							const gchar reply)
@@ -574,6 +613,12 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	if ((send && !strcmp(send, "'i'")) || (is_insert_only && !send)) {
 		gtk_text_buffer_insert_at_cursor(
 				gtkconv->entry_buffer, text, -1);
+		g_free(text);
+		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
+		return;
+	}
+	if (send && !strcmp(send, "'ir'")) {
+		change_text_at_start(gtkconv->entry_buffer, text);
 		g_free(text);
 		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 		return;
@@ -794,6 +839,7 @@ replace_or_insert(const gchar *string, const gchar *delimiter,
 typedef enum {
 	JUICK_LINK_SHOW,
 	JUICK_LINK_INSERT,
+	JUICK_LINK_INSERT_WITH_REPLACE,
 	JUICK_LINK_USER_INFO,
 	JUICK_LINK_USER_POSTS,
 	JUICK_LINK_SUBSCRIBE,
@@ -816,6 +862,9 @@ process_link(GtkIMHtmlLink *link, JuickLinkStatus status)
 			break;
 		case JUICK_LINK_INSERT:
 			murl = replace_or_insert(url, send, "'i'");
+			break;
+		case JUICK_LINK_INSERT_WITH_REPLACE:
+			murl = replace_or_insert(url, send, "'ir'");
 			break;
 		case JUICK_LINK_USER_INFO:
 			murl = replace_or_insert(url, send, "'ui'");
@@ -848,6 +897,12 @@ static void
 menu_insert_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 {
 	process_link(link, JUICK_LINK_INSERT);
+}
+
+static void
+menu_insert_replace_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+	process_link(link, JUICK_LINK_INSERT_WITH_REPLACE);
 }
 
 static void
@@ -907,6 +962,11 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		g_signal_connect(G_OBJECT(item_i), "activate",
 				G_CALLBACK(menu_insert_activate_cb), link);
 
+		item = gtk_menu_item_new_with_mnemonic(
+				"_Replace");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+			G_CALLBACK(menu_insert_replace_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See user _webpage");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
@@ -944,6 +1004,11 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		else
 			gtk_image_menu_item_set_image(
 					GTK_IMAGE_MENU_ITEM(item_s), img);
+		item = gtk_menu_item_new_with_mnemonic(
+						"_Replace");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+			G_CALLBACK(menu_insert_replace_activate_cb), link);
 		item = gtk_menu_item_new_with_mnemonic("See post _webpage");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
