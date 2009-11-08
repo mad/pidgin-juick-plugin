@@ -51,7 +51,9 @@
 #define PREF_IS_SHOW_JUICK PREF_PREFIX "/is_show_juick"
 #define PREF_IS_INSERT_ONLY PREF_PREFIX "/is_insert_only"
 
-const char *IMAGE_PREFIX = "http://i.juick.com/p";
+const gchar *IMAGE_PREFIX = "http://i.juick.com/p";
+
+static GHashTable *ht_signal_handlers = NULL;   /* <text_buffer, handler_id> */
 
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
@@ -678,20 +680,74 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	return FALSE;
 }
 
-static gboolean
-add_key_handler_cb(PurpleConversation *conv)
+static void
+insert_text_cb(GtkTextBuffer *textbuffer, GtkTextIter *location, gchar *text,
+						gint len, gpointer user_data)
 {
+}
+
+static void
+attach_to_conversation(gpointer data, gpointer user_data)
+{
+	PurpleConversation *conv = (PurpleConversation *) data;
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
+	gulong handler_id;
 
 	if (!g_str_has_prefix(conv->name, JUICK_JID))
-		return FALSE;
+		return;
 
-	/* Intercept keystrokes from the menu items */
-	g_signal_connect(G_OBJECT(gtkconv->entry), "key_press_event",
-				G_CALLBACK(window_keypress_cb), conv);
-	g_signal_connect(G_OBJECT(gtkconv->imhtml), "key_press_event",
-				G_CALLBACK(window_keypress_cb), conv);
-	return FALSE;
+	handler_id = g_signal_connect_after( G_OBJECT(imhtml->text_buffer),
+			"insert-text", G_CALLBACK(insert_text_cb), imhtml);
+	g_hash_table_insert(ht_signal_handlers, imhtml->text_buffer,
+						    (gpointer) handler_id);
+
+	handler_id = g_signal_connect(G_OBJECT(gtkconv->entry),
+		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
+	g_hash_table_insert(ht_signal_handlers, gtkconv->entry,
+						    (gpointer) handler_id);
+	handler_id = g_signal_connect(G_OBJECT(gtkconv->imhtml),
+		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
+	g_hash_table_insert(ht_signal_handlers, gtkconv->imhtml,
+						    (gpointer) handler_id);
+}
+
+static void
+detach_from_conversation(gpointer data, gpointer user_data)
+{
+	PurpleConversation *conv = (PurpleConversation *) data;
+	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
+	gulong handler_id;
+
+	if (!g_str_has_prefix(conv->name, JUICK_JID))
+		return;
+
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							imhtml->text_buffer);
+	g_signal_handler_disconnect(imhtml->text_buffer, handler_id);
+	g_hash_table_remove(ht_signal_handlers, imhtml->text_buffer);
+
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							gtkconv->entry);
+	g_signal_handler_disconnect(gtkconv->entry, handler_id);
+	g_hash_table_remove(ht_signal_handlers, gtkconv->entry);
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							gtkconv->imhtml);
+	g_signal_handler_disconnect(gtkconv->imhtml, handler_id);
+	g_hash_table_remove(ht_signal_handlers, gtkconv->imhtml);
+}
+
+static void
+conversation_created_cb(PurpleConversation *conv)
+{
+	attach_to_conversation(conv, NULL);
+}
+
+static void
+deleting_conversation_cb(PurpleConversation *conv)
+{
+	detach_from_conversation(conv, NULL);
 }
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
@@ -956,6 +1012,7 @@ plugin_load(PurplePlugin *plugin)
 {
 
 	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
+	void *conv_handle = purple_conversations_get_handle();
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb,
@@ -973,35 +1030,59 @@ plugin_load(PurplePlugin *plugin)
 	purple_signal_connect(pidgin_conversations_get_handle(),
 				"displaying-im-msg", plugin,
 				PURPLE_CALLBACK(juick_on_displaying), NULL);
-	purple_signal_connect(purple_conversations_get_handle(),
-				"conversation-created", plugin,
-				PURPLE_CALLBACK(add_key_handler_cb), NULL);
 
-	/* Jabber signals */
-	if (jabber_handle)
-		purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode",
-					plugin,
-					PURPLE_CALLBACK(xmlnode_received_cb),
-					NULL);
+	purple_signal_connect(jabber_handle, "jabber-receiving-xmlnode", plugin,
+				PURPLE_CALLBACK(xmlnode_received_cb), NULL);
+
+	/* Create the hash table for signal handlers. */
+	ht_signal_handlers = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+	/* Attach to current conversations. */
+	g_list_foreach(purple_get_conversations(), attach_to_conversation,
+									NULL);
+
+	/* Connect signals for future conversations. */
+	purple_signal_connect(conv_handle, "conversation-created", plugin,
+				PURPLE_CALLBACK(conversation_created_cb), NULL);
+	purple_signal_connect(conv_handle, "deleting-conversation", plugin,
+			PURPLE_CALLBACK(deleting_conversation_cb), NULL);
+
 	return TRUE;
 }
 
 static gboolean
 plugin_unload(PurplePlugin *plugin)
 {
+	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
+	void *conv_handle = purple_conversations_get_handle();
+
+	/* Disconnect signals for future conversations. */
+	purple_signal_disconnect(conv_handle, "conversation-created", plugin,
+				PURPLE_CALLBACK(conversation_created_cb));
+	purple_signal_disconnect(conv_handle, "deleting-conversation", plugin,
+				PURPLE_CALLBACK(deleting_conversation_cb));
+
+	/* Detach from current conversations. */
+	g_list_foreach(purple_get_conversations(), detach_from_conversation,
+									NULL);
+	/* Destroy the hash table for signal handlets. */
+	g_hash_table_destroy(ht_signal_handlers);
+
+	purple_signal_disconnect(jabber_handle, "jabber-receiving-xmlnode",
+			plugin, PURPLE_CALLBACK(xmlnode_received_cb));
+
+	purple_signal_disconnect(pidgin_conversations_get_handle(),
+			"displaying-im-msg", plugin,
+			PURPLE_CALLBACK(juick_on_displaying));
+
+	purple_signal_disconnect(purple_get_core(), "uri-handler", plugin,
+                                      PURPLE_CALLBACK(juick_uri_handler));
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", NULL, NULL);
 #else
 	juick_ops.notify_uri = saved_notify_uri;
 	purple_notify_set_ui_ops(&juick_ops);
 #endif
-	purple_signal_disconnect(purple_get_core(), "uri-handler", plugin,
-                                      PURPLE_CALLBACK(juick_uri_handler));
-
-	purple_signal_disconnect(purple_conversations_get_handle(),
-					"displaying-im-msg", plugin,
-					PURPLE_CALLBACK(juick_on_displaying));
-
 	return TRUE;
 }
 
