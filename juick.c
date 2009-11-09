@@ -576,21 +576,44 @@ str_post_add_prefix(const gchar *prefix, const gchar *str)
 	}
 }
 
-void change_text_at_start(GtkTextBuffer *buffer, const gchar* text) {
-	GtkTextIter start, end;
-	gchar *str, *p;
+void change_text_in_buffer(GtkTextBuffer *buffer, const gchar* text,
+							gboolean at_start)
+{
+	GtkTextIter start, end, iter;
+	gchar *str, *p, *first;
+	int i = 0;
 
 	gtk_text_buffer_get_bounds(buffer, &start, &end);
 	str = gtk_text_buffer_get_text(buffer, &start, &end, TRUE);
-	get_juick_tag(str, &p);
+	if (str == NULL) {
+		gtk_text_buffer_insert_at_cursor(buffer, text, -1);
+		return;
+	}
+	if (!at_start) {
+		gtk_text_buffer_get_iter_at_mark(buffer, &iter,
+					gtk_text_buffer_get_insert(buffer));
+		i = gtk_text_iter_get_offset(&iter);
+	}
+	p = str + i;
+	if (*p != '#' && *p != '@' && i != 0)
+		p = g_utf8_prev_char(p);
+	while(p != str) {
+		if (!g_unichar_isdigit(g_utf8_get_char(p)) && *p != '/')
+			break;
+		p = g_utf8_prev_char(p);
+	}
 
-	if (p == NULL || p == g_utf8_next_char(str)) {
+	first = p;
+	get_juick_tag(first, &p);
+
+	if (p == NULL || p == g_utf8_next_char(first)) {
 		gtk_text_buffer_insert_at_cursor(buffer, text, -1);
 	} else {
+		gtk_text_buffer_get_iter_at_offset(buffer, &start,
+					g_utf8_pointer_to_offset(str, first));
 		gtk_text_buffer_get_iter_at_offset(buffer, &end,
 					g_utf8_pointer_to_offset(str, p));
 		gtk_text_buffer_delete(buffer, &start, &end);
-		gtk_text_buffer_get_start_iter(buffer, &start);
 		gtk_text_buffer_insert(buffer, &start, text, strlen(text) - 1);
 	}
 }
@@ -609,14 +632,21 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	text = g_strconcat(body, " ", NULL);
 
 	if ((send && !strcmp(send, "'i'")) || (is_insert_only && !send)) {
-		gtk_text_buffer_insert_at_cursor(
-				gtkconv->entry_buffer, text, -1);
+		change_text_in_buffer(gtkconv->entry_buffer, text, TRUE);
 		g_free(text);
 		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 		return;
 	}
 	if (send && !strcmp(send, "'ir'")) {
-		change_text_at_start(gtkconv->entry_buffer, text);
+		change_text_in_buffer(gtkconv->entry_buffer, text, FALSE);
+		g_free(text);
+		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
+		return;
+	}
+	if (send && !strcmp(send, "'rec'")) {
+		s = str_post_add_prefix("! ", body);
+		purple_conv_im_send(convim, s);
+		g_free(s);
 		g_free(text);
 		gtk_widget_grab_focus(GTK_WIDGET(gtkconv->entry));
 		return;
@@ -788,7 +818,8 @@ typedef enum {
 	JUICK_LINK_USER_POSTS,
 	JUICK_LINK_SUBSCRIBE,
 	JUICK_LINK_UNSUBSCRIBE,
-	JUICK_LINK_WEBPAGE
+	JUICK_LINK_WEBPAGE,
+	JUICK_LINK_RECOMMEND
 } JuickLinkStatus;
 
 static void
@@ -824,6 +855,9 @@ process_link(GtkIMHtmlLink *link, JuickLinkStatus status)
 			break;
 		case JUICK_LINK_WEBPAGE:
 			murl = replace_or_insert(url, send, "'web'");
+			break;
+		case JUICK_LINK_RECOMMEND:
+			murl = replace_or_insert(url, send, "'rec'");
 			break;
 	}
 	if (murl != NULL)
@@ -879,6 +913,12 @@ menu_webpage_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
 	process_link(link, JUICK_LINK_WEBPAGE);
 }
 
+static void
+menu_recommend_activate_cb(GtkMenuItem *menuitem, GtkIMHtmlLink *link)
+{
+	process_link(link, JUICK_LINK_RECOMMEND);
+}
+
 static gboolean
 juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 {
@@ -895,7 +935,8 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_s);
 		g_signal_connect(G_OBJECT(item_s), "activate",
 				G_CALLBACK(menu_show_activate_cb), link);
-		item_i = gtk_image_menu_item_new_with_mnemonic("_Insert");
+		item_i = gtk_image_menu_item_new_with_mnemonic(
+						"_Insert/replace at start");
 		if (is_insert_only)
 			gtk_image_menu_item_set_image(
 					GTK_IMAGE_MENU_ITEM(item_i), img);
@@ -907,7 +948,7 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 				G_CALLBACK(menu_insert_activate_cb), link);
 
 		item = gtk_menu_item_new_with_mnemonic(
-				"_Replace");
+				"_Replace at cursor");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_insert_replace_activate_cb), link);
@@ -938,7 +979,8 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_s);
 		g_signal_connect(G_OBJECT(item_s), "activate",
 				G_CALLBACK(menu_show_activate_cb), link);
-		item_i = gtk_image_menu_item_new_with_mnemonic("_Insert");
+		item_i = gtk_image_menu_item_new_with_mnemonic(
+						"_Insert/replace at start");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_i);
 		g_signal_connect(G_OBJECT(item_i), "activate",
 				G_CALLBACK(menu_insert_activate_cb), link);
@@ -949,7 +991,7 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 			gtk_image_menu_item_set_image(
 					GTK_IMAGE_MENU_ITEM(item_s), img);
 		item = gtk_menu_item_new_with_mnemonic(
-						"_Replace");
+						"_Replace at cursor");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_insert_replace_activate_cb), link);
@@ -967,6 +1009,10 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 				G_CALLBACK(menu_unsubscribe_activate_cb), link);
+		item = gtk_menu_item_new_with_mnemonic("R_ecommend");
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		g_signal_connect(G_OBJECT(item), "activate",
+				G_CALLBACK(menu_recommend_activate_cb), link);
 	} else {
 		return FALSE;
 	}
