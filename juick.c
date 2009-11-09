@@ -576,7 +576,8 @@ str_post_add_prefix(const gchar *prefix, const gchar *str)
 	}
 }
 
-void change_text_in_buffer(GtkTextBuffer *buffer, const gchar* text,
+static void
+change_text_in_buffer(GtkTextBuffer *buffer, const gchar* text,
 							gboolean at_start)
 {
 	GtkTextIter start, end, iter;
@@ -678,8 +679,12 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 						(!is_insert_only && !send)) {
 			send_iq(gc, body + 1, IQ_POST);
 			send_iq(gc, body + 1, IQ_POST_REPLIES);
-			gtk_text_buffer_set_text(
-					gtkconv->entry_buffer, text, -1);
+			if (send)
+				change_text_in_buffer(gtkconv->entry_buffer,
+								text, TRUE);
+			else
+				gtk_text_buffer_set_text(
+						gtkconv->entry_buffer, text,-1);
 		}
 	} else if (reply == '@') {
 		s = g_strdup_printf("%s+", body);
@@ -948,7 +953,7 @@ juick_context_menu(GtkIMHtml * imhtml, GtkIMHtmlLink * link, GtkWidget * menu)
 				G_CALLBACK(menu_insert_activate_cb), link);
 
 		item = gtk_menu_item_new_with_mnemonic(
-				"_Replace at cursor");
+				"Insert/_replace at cursor");
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_insert_replace_activate_cb), link);
