@@ -761,26 +761,14 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 }
 
 static void
-insert_text_cb(GtkTextBuffer *textbuffer, GtkTextIter *location, gchar *text,
-						gint len, gpointer user_data)
-{
-}
-
-static void
 attach_to_conversation(gpointer data, gpointer user_data)
 {
 	PurpleConversation *conv = (PurpleConversation *) data;
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
-	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
 	gulong handler_id;
 
 	if (!g_str_has_prefix(conv->name, JUICK_JID))
 		return;
-
-	handler_id = g_signal_connect_after( G_OBJECT(imhtml->text_buffer),
-			"insert-text", G_CALLBACK(insert_text_cb), imhtml);
-	g_hash_table_insert(ht_signal_handlers, imhtml->text_buffer,
-						    (gpointer) handler_id);
 
 	handler_id = g_signal_connect(G_OBJECT(gtkconv->entry),
 		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
@@ -797,16 +785,10 @@ detach_from_conversation(gpointer data, gpointer user_data)
 {
 	PurpleConversation *conv = (PurpleConversation *) data;
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
-	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
 	gulong handler_id;
 
 	if (!g_str_has_prefix(conv->name, JUICK_JID))
 		return;
-
-	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
-							imhtml->text_buffer);
-	g_signal_handler_disconnect(imhtml->text_buffer, handler_id);
-	g_hash_table_remove(ht_signal_handlers, imhtml->text_buffer);
 
 	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
 							gtkconv->entry);
