@@ -1,0 +1,27 @@
+# Russian translations for PACKAGE package.
+# Copyright (C) 2009 THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Oleg <pktfag@gmail.com>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-11-11 02:26+0300\n"
+"PO-Revision-Date: 2009-11-11 02:33+0300\n"
+"Last-Translator: Oleg <pktfag@gmail.com>\n"
+"Language-Team: Russian\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ASCII\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%"
+"10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
+
+#: ../src/juick.c:61
+#, c-format
+msgid ""
+"\n"
+"<font color=\"red\">more juick tags are not placing due to reach their "
+"maximum count: %d in the one message\n"
+"</font>"
+msgstr ""
