@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-11-13 00:33+0300\n"
+"POT-Creation-Date: 2009-11-13 02:22+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,8 +20,8 @@ msgstr ""
 #, c-format
 msgid ""
 "\n"
-"<font color=\"red\">more juick tags are not placing due to reach their "
-"maximum count: %d in the one message\n"
+"<font color=\"red\">more juick tags will not placing due to reach their "
+"maximum count: %d in the single message\n"
 "</font>"
 msgstr ""
 
@@ -31,7 +31,7 @@ msgid "Replies (%s)\n"
 msgstr ""
 
 #: ../src/juick.c:406
-msgid "Continuation of the previous replies\n"
+msgid "Continued discussion\n"
 msgstr ""
 
 #: ../src/juick.c:999
@@ -114,6 +114,10 @@ msgstr ""
 #. *< dependencies
 #. *< priority
 #. *< id
+#: ../src/juick.c:1243
+msgid "Juick"
+msgstr ""
+
 #. *< name
 #. *< version
 #: ../src/juick.c:1245

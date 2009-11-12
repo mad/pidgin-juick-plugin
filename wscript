@@ -27,9 +27,7 @@ def configure(conf):
 
 	conf.env.append_value('CCFLAGS', '-DHAVE_CONFIG_H')
 
-	print conf.env.LIBDIR 
 	conf.define('GETTEXT_PACKAGE', APPNAME, 1)
-	conf.define('PACKAGE', APPNAME, 1)
 	conf.define('ENABLE_NLS', 1)
 	conf.write_config_header('config.h')
 

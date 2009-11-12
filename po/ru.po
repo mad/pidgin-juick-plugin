@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: pidgin-juick-plugin 0.2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-11-13 00:33+0300\n"
+"POT-Creation-Date: 2009-11-13 02:22+0300\n"
 "PO-Revision-Date: 2009-11-12 00:00+0300\n"
 "Last-Translator: pktfag <pktfag@gmail.com>\n"
 "Language-Team: Russian\n"
@@ -21,87 +21,93 @@ msgstr ""
 #, c-format
 msgid ""
 "\n"
-"<font color=\"red\">more juick tags are not placing due to reach their "
-"maximum count: %d in the one message\n"
+"<font color=\"red\">more juick tags will not placing due to reach their "
+"maximum count: %d in the single message\n"
 "</font>"
 msgstr ""
+"\n"
+"<font color=\"red\">Больше жуйктеги не будут размещаться из-за достижения их "
+"максимального количества: %d в одном сообщении\n"
+"</font>"
 
 #: ../src/juick.c:402
 #, c-format
 msgid "Replies (%s)\n"
-msgstr ""
+msgstr "Ответы (%s)\n"
 
 #: ../src/juick.c:406
-msgid "Continuation of the previous replies\n"
-msgstr ""
+msgid "Continued discussion\n"
+msgstr "Продолжение дискуссии\n"
 
 #: ../src/juick.c:999
 msgid "_See user info and posts"
-msgstr ""
+msgstr "_Смотреть информацию и посты жуйковчанина"
 
 #: ../src/juick.c:1003 ../src/juick.c:1052
 #, c-format
 msgid "_Insert/replace '%s ' at start"
-msgstr ""
+msgstr "_Вставить/заменить '%s' в начале"
 
 #: ../src/juick.c:1016 ../src/juick.c:1064
 #, c-format
 msgid "Insert/replace '%s ' at _cursor"
-msgstr ""
+msgstr "Вставить/заменить '%s' на месте _курсора"
 
 #: ../src/juick.c:1022
 msgid "See user _webpage"
-msgstr ""
+msgstr "Смотреть _вебстраницу жуйковчанина"
 
 #: ../src/juick.c:1026
 msgid "See user _info"
-msgstr ""
+msgstr "Смотреть _информацию о жуйковчанине"
 
 #: ../src/juick.c:1030
 msgid "See user _posts"
-msgstr ""
+msgstr "Посмотреть _посты жуйковчанина"
 
 #: ../src/juick.c:1034
 #, c-format
 msgid "Subscribe _to %s"
-msgstr ""
+msgstr "Подписаться _на %s"
 
 #: ../src/juick.c:1040
 #, c-format
 msgid "Unsubscribe _from %s"
-msgstr ""
+msgstr "Отписаться _от %s"
 
 #: ../src/juick.c:1048
 msgid "_See replies to post"
-msgstr ""
+msgstr "_Смотреть ответы на пост"
 
 #: ../src/juick.c:1070
 msgid "See post _webpage"
-msgstr ""
+msgstr "Смотреть _вебстраницу поста"
 
 #: ../src/juick.c:1075
 msgid "Subscribe _to this post"
-msgstr ""
+msgstr "Подписаться _на этот пост"
 
 #: ../src/juick.c:1080
 msgid "Unsubscribe _from this post"
-msgstr ""
+msgstr "Отписаться _от этого поста"
 
 #: ../src/juick.c:1084
 msgid "R_ecommend this post"
-msgstr ""
+msgstr "Р_екомендовать этот пост"
 
 #: ../src/juick.c:1123
 msgid "Greyed out tags in the message"
-msgstr ""
+msgstr "Выделять теги в сообщении"
 
 #: ../src/juick.c:1127
 msgid "Show max warning message"
 msgstr ""
+"Показывать предупреждающее сообщение о достижении максимального количества "
+"жуйктегов"
 
 #: ../src/juick.c:1130
 msgid "Show Juick conversation when click on juick tag in other conversation"
-msgstr ""
+msgstr "Показывать Juick беседу при клику на жуйктеге в другой беседе"
 
 #: ../src/juick.c:1134
 msgid "Insert when left click, don't show"
@@ -115,11 +121,15 @@ msgstr "Вставлять по левому щелчку, а не показы�
 #. *< dependencies
 #. *< priority
 #. *< id
+#: ../src/juick.c:1243
+msgid "Juick"
+msgstr "Жуйк"
+
 #. *< name
 #. *< version
 #: ../src/juick.c:1245
 msgid "Adds some color and button for juick bot."
-msgstr ""
+msgstr "Добавляет цвета и кнопки для жуйкбота"
 
 #. *< summary
 #: ../src/juick.c:1246
@@ -128,3 +138,6 @@ msgid ""
 "Unfortunately pidgin developers have decided that more than 100 tags may not "
 "be necessary when displaying the message"
 msgstr ""
+"Добавляет цвета и кнопки для жуйкбота.\n"
+"К сожалению, разработчики пиджина решили, что более чем 100 тегов не могут "
+"быть необходимыми при отображении сообщения"

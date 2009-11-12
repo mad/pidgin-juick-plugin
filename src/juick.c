@@ -64,8 +64,8 @@ static void
 add_warning_message(GString *output, gchar *src, int tag_max)
 {
 	const char *MORETAGSNOTPLACING = _("\n<font color=\"red\">more juick " \
-		"tags are not placing due to reach their maximum count: %d " \
-		"in the one message\n</font>");
+		"tags will not placing due to reach their maximum count: %d " \
+		"in the single message\n</font>");
 	gchar *s, *s1;
 	gboolean is_show_max_message = purple_prefs_get_bool(
 						PREF_IS_SHOW_MAX_MESSAGE);
@@ -403,7 +403,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 								  replies);
 		if (rid && strcmp(rid, "1") && !replyto)
 			g_string_prepend(output,
-				_("Continuation of the previous replies\n"));
+				_("Continued discussion\n"));
 	} else
 		g_string_append(output, "\n");
 	g_free(midrid);
@@ -1240,7 +1240,7 @@ static PurplePluginInfo info =
 	PURPLE_PRIORITY_DEFAULT,                          /**< priority */
 
 	"gtkjuick",                                       /**< id */
-	"Juick",                                          /**< name */
+	N_("Juick"),                                          /**< name */
 	"0.2",                                            /**< version */
 	N_("Adds some color and button for juick bot."),  /**< summary */
 	N_("Adds some color and button for juick bot.\n" \
@@ -1271,6 +1271,11 @@ init_plugin(PurplePlugin *plugin)
 	bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
 	textdomain(GETTEXT_PACKAGE);
 #endif /* ENABLE_NLS */
+	/* we have to translate it here as we are in a different textdomain */
+	plugin->info->name = _(plugin->info->name);
+	plugin->info->summary = _(plugin->info->summary);
+	plugin->info->description = _(plugin->info->description);
+
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
 	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);
