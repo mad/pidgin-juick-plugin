@@ -1,0 +1,32 @@
+NEW IN PIDGIN_JUICK_PLUGIN 0.2.9
+--------------------------------
+* fix pidgin segfaulted when make recomendation (! #1234)
+* work with pidgin 2.5
+* add option "is show Juick conversation when click"
+* add new option "insert..." compile for pidgin 2.4
+* fix juick command HELP
+* fix PM message (when receive PM - pidgin segfault)
+* fix hide new conversation bug
+* add subscribe, unsubscribe, see webpage commands, recommend post
+* fix access from other contacts
+* fix pidgin segfaulted, when showing warning message
+* add replyto to replyes 
+
+NEW IN PIDGIN_JUICK_PLUGIN 0.2 (OCTOBER 25, 2009)
+--------------------------------------------------
+
+* juick tags placed for long messages, in which the total number of tags> 100
+* placed real time of each message
+* works with the bot jubo@nologin.ru
+* UTF8 for internal message processing, as a result, works correctly on windows
+* remove avatars and keyboard shortcuts
+
+NEW IN PIDGIN_JUICK_PLUGIN 0.1 (SEPTEMBER 24, 2009)
+------------------------------
+
+* add 'last_reply' button
+* add keyboard shortcuts
+* add markup *bold*, /italic/, _underline_
+* implement displaying avatars
+* compile for win32
+* remove markup if tag > 100
