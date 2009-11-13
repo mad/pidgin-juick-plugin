@@ -363,7 +363,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 							mid, attach);
 	purple_debug_info(DBGID, "Join all strings\n");
 	if (uname && replyto)
-		s = g_strconcat("@", uname, ": reply to ", replyto, NULL);
+		s = g_strconcat("@", uname, _(": reply to "), replyto, NULL);
 	else if (uname)
 		s = g_strconcat("@", uname, ":", NULL);
 	if (comment) {

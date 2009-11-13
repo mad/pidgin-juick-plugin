@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: pidgin-juick-plugin 0.2\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-11-13 02:22+0300\n"
+"POT-Creation-Date: 2009-11-13 23:35+0300\n"
 "PO-Revision-Date: 2009-11-12 00:00+0300\n"
 "Last-Translator: pktfag <pktfag@gmail.com>\n"
 "Language-Team: Russian\n"
@@ -29,6 +29,10 @@ msgstr ""
 "<font color=\"red\">Больше жуйктеги не будут размещаться из-за достижения их "
 "максимального количества: %d в одном сообщении\n"
 "</font>"
+
+#: ../src/juick.c:366
+msgid ": reply to "
+msgstr ": в ответ на "
 
 #: ../src/juick.c:402
 #, c-format

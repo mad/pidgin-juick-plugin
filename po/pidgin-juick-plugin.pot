@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-11-13 02:22+0300\n"
+"POT-Creation-Date: 2009-11-13 23:35+0300\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -23,6 +23,10 @@ msgid ""
 "<font color=\"red\">more juick tags will not placing due to reach their "
 "maximum count: %d in the single message\n"
 "</font>"
+msgstr ""
+
+#: ../src/juick.c:366
+msgid ": reply to "
 msgstr ""
 
 #: ../src/juick.c:402
