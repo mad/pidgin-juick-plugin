@@ -421,11 +421,13 @@ make_message(const gchar *from, const gchar *to, const gchar *body)
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	/* xhtml-im work with gmail.com
 	 * and work with 'hide new conversation' */
+	gchar *s, *s1;
+	xmlnode *n1;
 	n = xmlnode_new_child(node, "html");
 	xmlnode_set_namespace(n, "http://jabber.org/protocol/xhtml-im");
-	gchar *s1 = purple_strreplace(body, "\n", "<br/>");
-	gchar *s = g_strconcat("<body>", s1, "</body>", NULL);
-	xmlnode *n1 = xmlnode_from_str(s, -1);
+	s1 = purple_strreplace(body, "\n", "<br/>");
+	s = g_strconcat("<body>", s1, "</body>", NULL);
+	n1 = xmlnode_from_str(s, -1);
 	g_free(s); g_free(s1);
 	xmlnode_insert_child(n, n1);
 #else
@@ -1264,7 +1266,7 @@ static PurplePluginInfo info =
 
 	"gtkjuick",                                       /**< id */
 	"Juick",                                          /**< name */
-	"0.2",                                            /**< version */
+	"0.2.9",                                            /**< version */
 	"Adds some color and button for juick bot.",      /**< summary */
 	"Adds some color and button for juick bot.\n" \
 		"Unfortunately pidgin developers have decided that more than " \
