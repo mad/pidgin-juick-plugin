@@ -739,6 +739,7 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 			conv = purple_conversation_new(
 				PURPLE_CONV_TYPE_IM, account, JUICK_JID);
 			if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
+				// don't work in pidgin 2.4, 2.5
 				purple_conversation_present(conv);
 			send_link(conv, send, body, reply[0]);
 			return TRUE;
@@ -1146,10 +1147,12 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 						PREF_IS_SHOW_MAX_MESSAGE,
                                             ("Show max warning message"));
         purple_plugin_pref_frame_add(frame, ppref);
+#if PURPLE_VERSION_CHECK(2, 6, 0)
         ppref = purple_plugin_pref_new_with_name_and_label(
 		PREF_IS_SHOW_JUICK, ("Show Juick conversation when click on " \
 					"juick tag in other conversation"));
         purple_plugin_pref_frame_add(frame, ppref);
+#endif
         ppref = purple_plugin_pref_new_with_name_and_label(
 		PREF_IS_INSERT_ONLY, ("Insert when left click, don't show"));
         purple_plugin_pref_frame_add(frame, ppref);
@@ -1289,8 +1292,8 @@ init_plugin(PurplePlugin *plugin)
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
 	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);
-	purple_prefs_add_bool(PREF_IS_SHOW_JUICK, TRUE);
 #if PURPLE_VERSION_CHECK(2, 6, 0)
+	purple_prefs_add_bool(PREF_IS_SHOW_JUICK, TRUE);
 	purple_prefs_add_bool(PREF_IS_INSERT_ONLY, FALSE);
 #else
 	purple_prefs_add_bool(PREF_IS_INSERT_ONLY, TRUE);
