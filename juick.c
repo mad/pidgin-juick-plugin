@@ -773,58 +773,6 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	return FALSE;
 }
 
-static void
-attach_to_conversation(gpointer data, gpointer user_data)
-{
-	PurpleConversation *conv = (PurpleConversation *) data;
-	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
-	gulong handler_id;
-
-	if (!g_str_has_prefix(conv->name, JUICK_JID))
-		return;
-
-	handler_id = g_signal_connect(G_OBJECT(gtkconv->entry),
-		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
-	g_hash_table_insert(ht_signal_handlers, gtkconv->entry,
-						    (gpointer) handler_id);
-	handler_id = g_signal_connect(G_OBJECT(gtkconv->imhtml),
-		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
-	g_hash_table_insert(ht_signal_handlers, gtkconv->imhtml,
-						    (gpointer) handler_id);
-}
-
-static void
-detach_from_conversation(gpointer data, gpointer user_data)
-{
-	PurpleConversation *conv = (PurpleConversation *) data;
-	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
-	gulong handler_id;
-
-	if (!g_str_has_prefix(conv->name, JUICK_JID))
-		return;
-
-	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
-							gtkconv->entry);
-	g_signal_handler_disconnect(gtkconv->entry, handler_id);
-	g_hash_table_remove(ht_signal_handlers, gtkconv->entry);
-	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
-							gtkconv->imhtml);
-	g_signal_handler_disconnect(gtkconv->imhtml, handler_id);
-	g_hash_table_remove(ht_signal_handlers, gtkconv->imhtml);
-}
-
-static void
-conversation_created_cb(PurpleConversation *conv)
-{
-	attach_to_conversation(conv, NULL);
-}
-
-static void
-deleting_conversation_cb(PurpleConversation *conv)
-{
-	detach_from_conversation(conv, NULL);
-}
-
 static gchar *
 replace_or_insert(const gchar *string, const gchar *delimiter,
 						const gchar *replacement)
@@ -1080,6 +1028,148 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 		result = TRUE;
 	}
 	return result;
+}
+
+#if !PURPLE_VERSION_CHECK(2, 6, 0)
+struct url_data {
+	GObject *object;
+	gchar *url;
+	GtkTextTag *tag;
+};
+
+static void url_data_destroy(gpointer mydata)
+{
+	struct url_data *data = mydata;
+	g_object_unref(data->object);
+	g_object_unref(data->tag);
+	g_free(data->url);
+	g_free(data);
+}
+
+/* The callback for an event on a link tag. */
+static gboolean tag_event(GtkTextTag *tag, GObject *imhtml, GdkEvent *event,
+					GtkTextIter *arg2, gpointer unused)
+{
+	GdkEventButton *event_button = (GdkEventButton *) event;
+	const gchar *body = "&body=";
+	gchar *text, *url;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+	if (GTK_IMHTML(imhtml)->editable)
+		return FALSE;
+	purple_debug_info(DBGID, "asdf0\n");
+	if (event->type == GDK_BUTTON_RELEASE && event_button->button == 3) {
+		url = g_strdup(g_object_get_data(G_OBJECT(tag), "link_url"));
+		purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, url);
+		if (!strncmp(url, "j:", 7)) {
+			gboolean result = FALSE;
+			struct url_data *tempdata = g_new(struct url_data, 1);
+			tempdata->object = g_object_ref(imhtml);
+			tempdata->url = url;
+			tempdata->tag = g_object_ref(tag);
+
+			GtkWidget *menu = gtk_menu_new();
+			g_object_set_data_full(G_OBJECT(menu), "x-imhtml-url-data", tempdata, url_data_destroy);
+
+			text = get_part_of_uri(url, body);
+
+			result = juick_context_menu(menu, url, text);
+
+			gtk_widget_show_all(menu);
+			gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL,
+				event_button->button, event_button->time);
+
+			g_free(text);
+			return FALSE;
+		}
+	}
+	return FALSE;
+}
+
+static void
+insert_text_cb(GtkTextBuffer *textbuffer, GtkTextIter *location, gchar *text,
+						gint len, gpointer user_data)
+{
+	GtkIMHtml *imhtml = GTK_IMHTML(user_data);
+	GtkTextTag *linktag = imhtml->edit.link;
+
+	if (linktag != NULL) {
+		g_signal_connect_before(G_OBJECT(linktag), "event",
+						G_CALLBACK(tag_event), NULL);
+
+	}
+}
+#endif
+
+static void
+attach_to_conversation(gpointer data, gpointer user_data)
+{
+	PurpleConversation *conv = (PurpleConversation *) data;
+	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+	gulong handler_id;
+
+	if (!g_str_has_prefix(conv->name, JUICK_JID))
+		return;
+
+#if !PURPLE_VERSION_CHECK(2, 6, 0)
+	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
+	handler_id = g_signal_connect_after( G_OBJECT(imhtml->text_buffer),
+			"insert-text", G_CALLBACK(insert_text_cb), imhtml);
+	g_hash_table_insert(ht_signal_handlers, imhtml->text_buffer,
+						    (gpointer) handler_id);
+#endif
+
+	handler_id = g_signal_connect(G_OBJECT(gtkconv->entry),
+		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
+	g_hash_table_insert(ht_signal_handlers, gtkconv->entry,
+						    (gpointer) handler_id);
+	handler_id = g_signal_connect(G_OBJECT(gtkconv->imhtml),
+		"key_press_event", G_CALLBACK(window_keypress_cb), conv);
+	g_hash_table_insert(ht_signal_handlers, gtkconv->imhtml,
+						    (gpointer) handler_id);
+}
+
+static void
+detach_from_conversation(gpointer data, gpointer user_data)
+{
+	PurpleConversation *conv = (PurpleConversation *) data;
+	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
+	gulong handler_id;
+
+	if (!g_str_has_prefix(conv->name, JUICK_JID))
+		return;
+
+#if !PURPLE_VERSION_CHECK(2, 6, 0)
+	// remove 'insert-text signal
+	GtkIMHtml *imhtml = GTK_IMHTML(gtkconv->imhtml);
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							imhtml->text_buffer);
+	g_signal_handler_disconnect(imhtml->text_buffer, handler_id);
+	g_hash_table_remove(ht_signal_handlers, imhtml->text_buffer);
+#endif
+
+	//remove key_press_event on gtkconv->entry signal
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							gtkconv->entry);
+	g_signal_handler_disconnect(gtkconv->entry, handler_id);
+	g_hash_table_remove(ht_signal_handlers, gtkconv->entry);
+	//remove key_press_event on gtkconv->imhtml signal
+	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
+							gtkconv->imhtml);
+	g_signal_handler_disconnect(gtkconv->imhtml, handler_id);
+	g_hash_table_remove(ht_signal_handlers, gtkconv->imhtml);
+}
+
+static void
+conversation_created_cb(PurpleConversation *conv)
+{
+	attach_to_conversation(conv, NULL);
+}
+
+static void
+deleting_conversation_cb(PurpleConversation *conv)
+{
+	detach_from_conversation(conv, NULL);
 }
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
