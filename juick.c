@@ -424,7 +424,7 @@ make_message(const gchar *from, const gchar *to, const gchar *body)
 	n = xmlnode_new_child(node, "html");
 	xmlnode_set_namespace(n, "http://jabber.org/protocol/xhtml-im");
 	gchar *s1 = purple_strreplace(body, "\n", "<br/>");
-	gchat *s = g_strconcat("<body>", s1, "</body>", NULL);
+	gchar *s = g_strconcat("<body>", s1, "</body>", NULL);
 	xmlnode *n1 = xmlnode_from_str(s, -1);
 	g_free(s); g_free(s1);
 	xmlnode_insert_child(n, n1);
@@ -826,6 +826,7 @@ deleting_conversation_cb(PurpleConversation *conv)
 	detach_from_conversation(conv, NULL);
 }
 
+#if PURPLE_VERSION_CHECK(2, 6, 0)
 static gchar *
 replace_or_insert(const gchar *string, const gchar *delimiter,
 						const gchar *replacement)
@@ -1083,7 +1084,6 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 	return result;
 }
 
-#if PURPLE_VERSION_CHECK(2, 6, 0)
 static gboolean
 juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
 {
