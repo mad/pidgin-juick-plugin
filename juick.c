@@ -286,13 +286,16 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_return_if_fail(output != NULL);
 
 	n = xmlnode_get_child(node, "body");
+	body = xmlnode_get_data(n);
+#if PURPLE_VERSION_CHECK(2, 6, 0)
 	// Strangely, in the Help says
 	// "xmlnode_get_data Gets (escaped) data from a node".
 	// But we need to execute the special function
 	// to ensure that the text was actually escaped
-	body = xmlnode_get_data(n);
+	// 2.6 need escape because of xhtml-im
 	s = g_markup_escape_text(body, strlen(body));
 	g_free(body); body = s;
+#endif
 	uname = xmlnode_get_attrib(node, "uname");
 	mid = xmlnode_get_attrib(node, "mid");
 	rid = xmlnode_get_attrib(node, "rid");
@@ -407,8 +410,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 static xmlnode *
 make_message(const gchar *from, const gchar *to, const gchar *body)
 {
-	xmlnode *node, *n, *n1;
-	gchar *s;
+	xmlnode *node, *n;
 
 	node = xmlnode_new("message");
 	xmlnode_set_attrib(node, "type", "chat");
@@ -416,12 +418,24 @@ make_message(const gchar *from, const gchar *to, const gchar *body)
 	xmlnode_set_attrib(node, "to", to);
 	xmlnode_set_attrib(node, "id", "123");
 
+#if PURPLE_VERSION_CHECK(2, 6, 0)
+	/* xhtml-im work with gmail.com
+	 * and work with 'hide new conversation' */
 	n = xmlnode_new_child(node, "html");
 	xmlnode_set_namespace(n, "http://jabber.org/protocol/xhtml-im");
-	s = g_strconcat("<body>", body, "</body>", NULL);
-	n1 = xmlnode_from_str(s, -1);
-	g_free(s);
+	gchar *s1 = purple_strreplace(body, "\n", "<br/>");
+	gchat *s = g_strconcat("<body>", s1, "</body>", NULL);
+	xmlnode *n1 = xmlnode_from_str(s, -1);
+	g_free(s); g_free(s1);
 	xmlnode_insert_child(n, n1);
+#else
+	/* xhtml-im don't work with 'hide new conversation' in pidgin 2.4, 2.5
+	 * jabber:client don't good work with gmail.com,
+	 * but work with 2.4, 2.5 pidgin */
+	n = xmlnode_new_child(node, "body");
+	xmlnode_set_namespace(n, "jabber:client");
+	xmlnode_insert_data(n, body, -1);
+#endif
 
 	return node;
 }
@@ -431,7 +445,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
 	xmlnode *node;
 	const char *from;
-	gchar *s = NULL, *s1 = NULL;
+	gchar *s = NULL;
 	GString *output = NULL;
 	gboolean first = TRUE;
 
@@ -456,10 +470,9 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 	}
 	if (output->len != 0) {
 		s = g_string_free(output, FALSE);
-		s1 = purple_strreplace(s, "\n", "<br/>");
 		node = make_message(from,
-				xmlnode_get_attrib(*packet, "to"), s1);
-		g_free(s); g_free(s1);
+				xmlnode_get_attrib(*packet, "to"), s);
+		g_free(s);
 		xmlnode_free(*packet);
 		*packet = node;
 	} else {
