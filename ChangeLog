@@ -1,5 +1,5 @@
-NEW IN PIDGIN_JUICK_PLUGIN 0.2.9
---------------------------------
+NEW IN PIDGIN_JUICK_PLUGIN 0.2.9 (NOVEMBER 15, 2009)
+----------------------------------------------------
 * fix pidgin segfaulted when make recomendation (! #1234)
 * work with pidgin 2.5
 * add option "is show Juick conversation when click"
