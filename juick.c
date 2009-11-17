@@ -275,7 +275,8 @@ static void
 body_reformat(GString *output, xmlnode *node, gboolean first)
 {
 	xmlnode *n, *bodyupn = NULL, *tagn;
-	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto, *attach;
+	const char *uname, *mid, *rid, *mood, *ts, *replies, *replyto,
+	      *attach, *resource = NULL;
 	gchar *body = NULL, *bodyup = NULL, *next = NULL, *tags = NULL,
 	      *tag = NULL, *s = NULL, *s1, *tagsmood = NULL, *midrid = NULL,
 	      *comment = NULL, *ts_ = NULL, *url = NULL, old_char = '\0';
@@ -307,6 +308,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	mood = xmlnode_get_attrib(node, "mood");
 	replyto = xmlnode_get_attrib(node, "replyto");
 	attach = xmlnode_get_attrib(node, "attach");
+	resource = xmlnode_get_attrib(node, "resource");
 	tagn = xmlnode_get_child(node, "tag");
 	// purple_debug_info(DBGID, "Make tags\n");
 	while (tagn) {
@@ -392,9 +394,14 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	g_free(bodyup);
 	if (midrid != NULL) {
 		purple_util_chrreplace(midrid, '/', '#');
-		g_string_append_printf(output, " http://juick.com/%s\n",
+		g_string_append_printf(output, " http://juick.com/%s",
 								   midrid);
 	}
+	if (resource == NULL)
+		g_string_append(output, "\n");
+	else
+		g_string_append_printf(output, " from %s\n", resource);
+
 	if (first) {
 		if (replies)
 			g_string_append_printf(output, "Replies (%s)\n",
