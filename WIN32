@@ -1,0 +1,22 @@
+Compile on Windows
+------------------
+ 1. Install python
+ 2. Install cygwin
+    cygwin packets: gettext-devel, intltool
+ 3. Install MinGW. Set PATH=/cygdrive/c/MinGW/bin:$PATH
+ 3. Download win32-dev
+ 4. Download pidgin sources
+ 5. Copy pidgin.pc, purple.pc files to directory win32-dev/gtk_2_0/lib/pkgconfig
+ 6. Set PKG_CONFIG_PATH=my/win32-dev/gtk_2_0/lib/pkgconfig
+ 7. Change prefix in files: pidgin.pc, purple.pc
+ 8. Change prefix in files:
+atk.pc        cairo-svg.pc         freetype2.pc       gio-2.0.pc                gthread-2.0.pc     pango.pc      
+cairo-ft.pc   cairo-win32-font.pc  gail.pc            glib-2.0.pc               gtk+-2.0.pc        pangocairo.pc
+cairo-pdf.pc  cairo-win32.pc       gdk-2.0.pc         gmodule-2.0.pc            gtk+-win32-2.0.pc  pangoft2.pc
+cairo-png.pc  cairo.pc             gdk-pixbuf-2.0.pc  gmodule-no-export-2.0.pc  libpng.pc          pangowin32.pc
+cairo-ps.pc   fontconfig.pc        gdk-win32-2.0.pc   gobject-2.0.pc            libpng12.pc        
+
+Script for change prefix:
+find . -name '*pc'|while read a; do sed -e 's|asdf|qwer|g' $a > `dirname $a`/pkg/`basename $a`; done
+ 9. /cygdrive/c/Python26/python waf configure
+ 10. /cygdrive/c/Python26/python waf
