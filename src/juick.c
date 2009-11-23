@@ -23,7 +23,19 @@
 #include "config.h"
 #endif
 
+#if ENABLE_NLS
+
+#ifdef WIN32
+/* On Win32, include win32dep.h from purple for correct definition
+ * of LOCALEDIR */
+#include "win32dep.h"
+#endif /* WIN32 */
+
+/* internationalisation header */
 #include <glib/gi18n-lib.h>
+
+#endif /* ENABLE_NLS */
+
 #include <gdk/gdkkeysyms.h>
 #include <ctype.h>
 #include <glib.h>
