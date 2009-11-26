@@ -3,6 +3,7 @@
 # pktfag, 2009
 
 import sys
+import Options
 
 APPNAME = 'pidgin-juick-plugin'
 
@@ -10,19 +11,34 @@ srcdir = '.'
 blddir = 'build'
 
 def set_options(opt):
+	opt.tool_options('compiler_cc')
 	opt.tool_options('intltool')
+	group = opt.add_option_group ('Windows', '')
+	group.add_option('-w',
+			action='store_true',
+			default=False,
+			help='Configure and compile for Windows',
+			dest='win32')
 
 def configure(conf):
 	is_win32=sys.platform=='win32'
 
-	conf.check_tool('gcc')
+	if Options.options.win32:
+		# create the second environment, set the variant and set its name
+		env = conf.env.copy()
+		env.set_variant('win32')
+		conf.set_env_name('win32', env)
+		# call the debug environment
+		conf.setenv('win32')
+
+	conf.check_tool('compiler_cc')
+	#conf.check_tool('gcc')
 	# we don't require intltool on Windows (it would require Perl) though it works well
 	conf.define('ENABLE_NLS', 1)
 	try:
 		conf.check_tool('intltool')
 	except:
 		conf.undefine('ENABLE_NLS')
-		pass
 
 	conf.check_cfg(package='purple',
 			args='--cflags --libs',
@@ -35,7 +51,7 @@ def configure(conf):
 
 	conf.env.append_value('CCFLAGS', '-DHAVE_CONFIG_H')
 
-	if is_win32:
+	if is_win32 or Options.options.win32:
 		# on Windows LOCALEDIR define in purple win32dep.h
 		conf.undefine('DATADIR')
 		conf.undefine('LOCALEDIR')
@@ -43,13 +59,20 @@ def configure(conf):
 	conf.write_config_header('config.h')
 
 def build(bld):
-	bld.env.LIBDIR = '${PREFIX}/lib/pidgin'
-	if bld.env.INTLTOOL:
+	if Options.options.win32:
+		variant_name='win32'
+	else:
+		variant_name='default'
+	envx = bld.env_of_name(variant_name)
+
+	envx.LIBDIR = '${PREFIX}/lib/pidgin'
+	if envx['INTLTOOL']:
 		bld.new_task_gen(
 				features = 'intltool_po',
 				podir = 'po',
 				install_path = '${LOCALEDIR}',
-				appname	= APPNAME
+				appname	= APPNAME,
+				env = envx.copy()
 				)
 
 	bld.new_task_gen(
@@ -57,7 +80,7 @@ def build(bld):
 			source = 'src/juick.c',
 			includes = '.',
 			target = APPNAME,
-			uselib = 'pidgin purple'
+			uselib = 'pidgin purple',
+			env = envx.copy()
 			)
-	pass
 
