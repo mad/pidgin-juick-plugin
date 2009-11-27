@@ -2,7 +2,7 @@
 # encoding: utf-8
 # pktfag, 2009
 
-import sys
+import os, sys
 import Options
 
 APPNAME = 'pidgin-juick-plugin'
@@ -17,7 +17,7 @@ def set_options(opt):
 	group.add_option('-w',
 			action='store_true',
 			default=False,
-			help='Configure and compile for Windows',
+			help='Configure and crosscompile for Windows',
 			dest='win32')
 
 def configure(conf):
@@ -59,18 +59,23 @@ def configure(conf):
 	conf.write_config_header('config.h')
 
 def build(bld):
+	is_win32=sys.platform=='win32' or Options.options.win32
 	if Options.options.win32:
 		variant_name='win32'
 	else:
 		variant_name='default'
 	envx = bld.env_of_name(variant_name)
 
-	envx.LIBDIR = '${PREFIX}/lib/pidgin'
+	if is_win32:
+		envx['LOCALEDIR'] = os.path.join(envx['PREFIX'], 'locale')
+		envx['BINDIR'] = os.path.join(envx['PREFIX'], 'pidgin', 'plugins')
+		envx['LIBDIR'] = os.path.join(envx['PREFIX'], 'pidgin', 'plugins')
+	else:
+		envx['LIBDIR'] = os.path.join(envx['PREFIX'], 'lib', 'pidgin')
 	if envx['INTLTOOL']:
 		bld.new_task_gen(
 				features = 'intltool_po',
 				podir = 'po',
-				install_path = '${LOCALEDIR}',
 				appname	= APPNAME,
 				env = envx.copy()
 				)
