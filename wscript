@@ -6,7 +6,7 @@ import os, sys
 import Options
 
 APPNAME = 'pidgin-juick-plugin'
-VERSION = '0.3'
+VERSION = '0.3.2'
 
 srcdir = '.'
 blddir = 'build'
@@ -111,15 +111,30 @@ def dist():
 	else:
 		import pproc
 	from Logs import info
+	import tarfile, shutil
 	try:
-		if Scripting.g_gz == 'bz2':
-			archiver = 'bzip2'
-		else:
-			archiver = 'gzip'
-		arch_name = APPNAME + '-' + VERSION + '.tar.' + Scripting.g_gz
-		gzipfile = open(arch_name, 'w')
-		p1 = pproc.Popen (['git', 'archive', 'HEAD'], stdout=pproc.PIPE)
-		p2 = pproc.Popen([archiver], stdin=p1.stdout, stdout=gzipfile).communicate()[0]
+		tmp_folder = APPNAME + '-' + VERSION
+		arch_name = tmp_folder+'.tar.'+Scripting.g_gz
+
+		# remove the previous dir
+		try:
+			shutil.rmtree(tmp_folder)
+		except (OSError, IOError):
+			pass
+
+		# remove the previous archive
+		try:
+			os.remove(arch_name)
+		except (OSError, IOError):
+			pass
+
+		os.makedirs(tmp_folder)
+		p1 = pproc.Popen(['git', 'archive', 'HEAD'], stdout=pproc.PIPE)
+		p2 = pproc.Popen(['tar', '-C', tmp_folder, '-xf', '-'], stdin=p1.stdout)
+
+		tar = tarfile.open(arch_name, 'w:' + Scripting.g_gz)
+		tar.add(tmp_folder)
+		tar.close()
 
 		try: from hashlib import sha1 as sha
 		except ImportError: from sha import sha
@@ -129,6 +144,7 @@ def dist():
 			digest = ''
 
 		info('New archive created: %s%s' % (arch_name, digest))
+		if os.path.exists(tmp_folder): shutil.rmtree(tmp_folder)
 	except:
 		Scripting.dist(APPNAME, VERSION)
 
