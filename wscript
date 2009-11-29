@@ -13,6 +13,12 @@ blddir = 'build'
 def set_options(opt):
 	opt.tool_options('compiler_cc')
 	opt.tool_options('intltool')
+	group = opt.add_option_group ('Install', '')
+	group.add_option('--for-nsis',
+			action='store_true',
+			default=False,
+			help='Install for Windows NSIS (work with option -w or for Windows platform)',
+			dest='nsis')
 	group = opt.add_option_group ('Windows', '')
 	group.add_option('-w',
 			action='store_true',
@@ -68,8 +74,12 @@ def build(bld):
 
 	if is_win32:
 		envx['LOCALEDIR'] = os.path.join(envx['PREFIX'], 'locale')
-		envx['BINDIR'] = os.path.join(envx['PREFIX'], 'pidgin', 'plugins')
-		envx['LIBDIR'] = os.path.join(envx['PREFIX'], 'pidgin', 'plugins')
+		if Options.options.nsis:
+			envx['BINDIR'] = envx['PREFIX']
+			envx['LIBDIR'] = envx['PREFIX']
+		else:
+			envx['BINDIR'] = os.path.join(envx['PREFIX'], 'plugins')
+			envx['LIBDIR'] = os.path.join(envx['PREFIX'], 'plugins')
 	else:
 		envx['LIBDIR'] = os.path.join(envx['PREFIX'], 'lib', 'pidgin')
 	if envx['INTLTOOL']:
@@ -88,4 +98,6 @@ def build(bld):
 			uselib = 'pidgin purple',
 			env = envx.copy()
 			)
+	if is_win32 and Options.options.nsis:
+		bld.install_files(envx['PREFIX'], 'ChangeLog COPYING')
 
