@@ -1,0 +1,20 @@
+# Contributor: pktfag
+
+pkgname=pidgin-juick-plugin
+pkgver=0.3
+pkgrel=1
+pkgdesc=""
+arch=('i686')
+url="http://github.com/mad/pidgin-juick-plugin"
+license=('GPL-3')
+depends=('pidgin>=2.6')
+makedepends=('python')
+source=(http://cloud.github.com/downloads/mad/pidgin-juick-plugin/$pkgname-$pkgver.tar.gz)
+
+md5sums=('27f21554492fc2484b6bb303bfbf3019')
+
+build() {
+	cd "$srcdir"/$pkgname-$pkgver
+	./waf configure --prefix=/usr || return 1
+	./waf install --destdir="$pkgdir"
+}

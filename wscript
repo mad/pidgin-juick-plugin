@@ -6,6 +6,7 @@ import os, sys
 import Options
 
 APPNAME = 'pidgin-juick-plugin'
+VERSION = '0.3'
 
 srcdir = '.'
 blddir = 'build'
@@ -99,5 +100,35 @@ def build(bld):
 			env = envx.copy()
 			)
 	if is_win32 and Options.options.nsis:
-		bld.install_files(envx['PREFIX'], 'ChangeLog COPYING packaging/windows/pidgin-juick-plugin.nsi')
+		bld.install_as(envx['PREFIX'] + '/ChangeLog.txt', 'ChangeLog')
+		bld.install_as(envx['PREFIX'] + '/COPYING.txt', 'COPYING')
+		bld.install_files(envx['PREFIX'], 'packaging/windows/pidgin-juick-plugin.nsi')
+
+def dist():
+	import Utils, Scripting
+	if sys.hexversion >= 0x2060000:
+		import subprocess as pproc
+	else:
+		import pproc
+	from Logs import info
+	try:
+		if Scripting.g_gz == 'bz2':
+			archiver = 'bzip2'
+		else:
+			archiver = 'gzip'
+		arch_name = APPNAME + '-' + VERSION + '.tar.' + Scripting.g_gz
+		gzipfile = open(arch_name, 'w')
+		p1 = pproc.Popen (['git', 'archive', 'HEAD'], stdout=pproc.PIPE)
+		p2 = pproc.Popen([archiver], stdin=p1.stdout, stdout=gzipfile).communicate()[0]
+
+		try: from hashlib import sha1 as sha
+		except ImportError: from sha import sha
+		try:
+			digest = " (sha=%r)" % sha(Utils.readf(arch_name)).hexdigest()
+		except:
+			digest = ''
+
+		info('New archive created: %s%s' % (arch_name, digest))
+	except:
+		Scripting.dist(APPNAME, VERSION)
 
