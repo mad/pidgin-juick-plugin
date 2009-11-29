@@ -3,7 +3,7 @@
 pkgname=pidgin-juick-plugin
 pkgver=0.3.2
 pkgrel=1
-pkgdesc=""
+pkgdesc="Pidgin plugin that adds some color and button for juick bot"
 arch=('i686')
 url="http://github.com/mad/pidgin-juick-plugin"
 license=('GPL-3')
