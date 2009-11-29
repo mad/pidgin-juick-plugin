@@ -99,5 +99,5 @@ def build(bld):
 			env = envx.copy()
 			)
 	if is_win32 and Options.options.nsis:
-		bld.install_files(envx['PREFIX'], 'ChangeLog COPYING')
+		bld.install_files(envx['PREFIX'], 'ChangeLog COPYING packaging/windows/pidgin-juick-plugin.nsi')
 

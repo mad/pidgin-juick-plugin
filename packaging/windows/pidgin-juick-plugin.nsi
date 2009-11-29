@@ -39,6 +39,23 @@
 !insertmacro MUI_LANGUAGE "English"
 !insertmacro MUI_LANGUAGE "Russian"
 
+LangString MUI_SURE ${LANG_ENGLISH} "Are you sure you want to uninstall $(^Name)?"
+LangString MUI_SURE ${LANG_RUSSIAN} "Вы уверены в том, что желаете удалить $(^Name) и все компоненты программы?"
+LangString MUI_UNINSTALLSUCCESS ${LANG_ENGLISH} "$(^Name) Uninstall was completed successfully."
+LangString MUI_UNINSTALLSUCCESS ${LANG_RUSSIAN} "Удаление программы $(^Name) было успешно завершено."
+LangString MUI_PIDGINPLUGINSNOTFIND ${LANG_ENGLISH} "Could not find pidgin plugin directory, ${PRODUCT_NAME}.dll not uninstalled!"
+LangString MUI_PIDGINPLUGINSNOTFIND ${LANG_RUSSIAN} "Не найден каталог pidgin\plugins, ${PRODUCT_NAME}.dll не удален!"
+LangString MUI_PIDGININSTALLNOTFIND ${LANG_ENGLISH} "Failed to find Pidgin installation. Please install Pidgin first"
+LangString MUI_PIDGININSTALLNOTFIND ${LANG_RUSSIAN} "Не найдено, куда установлен Pidgin. Установите вначале Pidgin"
+LangString MUI_PIDGINSTILLRUNNING ${LANG_ENGLISH} "${PRODUCT_NAME}.dll is busy. Probably Pidgin is still running. Please delete $PidginDir\plugins\${PRODUCT_NAME}.dll manually."
+LangString MUI_PIDGINSTILLRUNNING ${LANG_RUSSIAN} "${PRODUCT_NAME}.dll занят. Возможно Pidgin запущен. Удалите $PidginDir\plugins\${PRODUCT_NAME}.dll вручную."
+LangString MUI_PIDGINNEEDCLOSE ${LANG_ENGLISH} "${PRODUCT_NAME}.dll is busy. Please close Pidgin (including tray icon) and try again"
+LangString MUI_PIDGINNEEDCLOSE ${LANG_RUSSIAN} "${PRODUCT_NAME}.dll занят. Выключите Pidgin (включая иконку в трее) и попробуйте снова"
+LangString MUI_UNINSTALLPREVABORT ${LANG_ENGLISH} "Uninstalling of the previous version gave an error. Install aborted."
+LangString MUI_UNINSTALLPREVABORT ${LANG_RUSSIAN} "Удаление предыдущей версии произошло с ошибками. Установка прервана."
+LangString MUI_PRODUCTFOUND ${LANG_ENGLISH} "${PRODUCT_NAME} was already found on your system and will first be uninstalled"
+LangString MUI_PRODUCTFOUND ${LANG_RUSSIAN} "${PRODUCT_NAME} уже находится на Вашей системе и вначале будет удален"
+
 ; MUI end ------
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
@@ -85,15 +102,14 @@ Section -Post
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
 SectionEnd
 
-
 Function un.onUninstSuccess
   HideWindow
-  MessageBox MB_ICONINFORMATION|MB_OK "Удаление программы $(^Name) было успешно завершено."
+  MessageBox MB_ICONINFORMATION|MB_OK $(MUI_UNINSTALLSUCCESS)
 FunctionEnd
 
 Function un.onInit
 !insertmacro MUI_UNGETLANGUAGE
-  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 "Вы уверены в том, что желаете удалить $(^Name) и все компоненты программы?" IDYES +2
+  MessageBox MB_ICONQUESTION|MB_YESNO|MB_DEFBUTTON2 $(MUI_SURE) IDYES +2
   Abort
 FunctionEnd
 
@@ -111,9 +127,9 @@ Section Uninstall
 
   ReadRegStr $PidginDir HKLM Software\${PRODUCT_NAME} "pidgindir"
     IfFileExists "$PidginDir\plugins\${PRODUCT_NAME}.dll" dodelete
-  ReadRegStr $PidginDir HKCU Software\Pidgin-juick-plugin "pidgindir"
+  ReadRegStr $PidginDir HKCU Software\${PRODUCT_NAME} "pidgindir"
     IfFileExists "$PidginDir\plugins\${PRODUCT_NAME}.dll" dodelete
-  MessageBox MB_OK|MB_ICONINFORMATION "Could not find pidgin plugin directory, ${PRODUCT_NAME}.dll not uninstalled!" IDOK ok
+  MessageBox MB_OK|MB_ICONINFORMATION $(MUI_PIDGINPLUGINSNOTFIND) IDOK ok
 dodelete:
   Delete "$PidginDir\plugins\${PRODUCT_NAME}.dll"
 
@@ -131,7 +147,7 @@ dodelete:
   Pop $0
 
   IfFileExists "$PidginDir\plugins\${PRODUCT_NAME}.dll" 0 +2
-    MessageBox MB_OK|MB_ICONINFORMATION "${PRODUCT_NAME}.dll is busy. Probably Pidgin is still running. Please delete $PidginDir\plugins\${PRODUCT_NAME}.dll manually."
+    MessageBox MB_OK|MB_ICONINFORMATION $(MUI_PIDGINSTILLRUNNING)
 
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
 ok:
@@ -144,8 +160,9 @@ Function GetPidginInstPath
     IfFileExists "$0\pidgin.exe" cont
     ReadRegStr $0 HKCU "Software\pidgin" ""
     IfFileExists "$0\pidgin.exe" cont
-  MessageBox MB_OK|MB_ICONINFORMATION "Failed to find Pidgin installation."
-    Abort "Failed to find Pidgin installation. Please install Pidgin first."
+  Abort $(MUI_PIDGININSTALLNOTFIND)
+;  MessageBox MB_OK|MB_ICONINFORMATION $(MUI_PIDGININSTALLNOTFIND)
+;    Abort "Failed to find Pidgin installation. Please install Pidgin first."
 cont:
   StrCpy $PidginDir $0
   WriteRegStr ${PRODUCT_UNINST_ROOT_KEY} "SOFTWARE\${PRODUCT_NAME}" "pidgindir" "$PidginDir"
@@ -156,7 +173,7 @@ Function UnInstOld
   ReadRegStr $0 ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}" "UninstallString"
   IfFileExists "$0" deinst cont
 deinst:
-  MessageBox MB_OK|MB_ICONEXCLAMATION  "${PRODUCT_NAME} was already found on your system and will first be uninstalled"
+  MessageBox MB_OK|MB_ICONEXCLAMATION  $(MUI_PRODUCTFOUND)
   ; the uninstaller copies itself to temp and execs itself there, so it can delete
   ; everything including its own original file location. To prevent the installer and
   ; uninstaller racing you can't simply ExecWait.
@@ -165,8 +182,8 @@ deinst:
   ClearErrors
   ExecWait '"$0" _?=$INSTDIR'
   IfErrors 0 cont
-    MessageBox MB_OK|MB_ICONEXCLAMATION  "Uninstall failed or aborted"
-      Abort "Uninstalling of the previous version gave an error. Install aborted."
+    MessageBox MB_OK|MB_ICONEXCLAMATION $(MUI_UNTEXT_ABORT_TITLE) ; "Uninstall failed or aborted"
+      Abort $(MUI_UNINSTALLPREVABORT)
     ;BringToFront
 cont:
 FunctionEnd
@@ -184,7 +201,7 @@ copy:
   IfErrors dllbusy
     Return
 dllbusy:
-  MessageBox MB_RETRYCANCEL "${PRODUCT_NAME}.dll is busy. Please close Pidgin (including tray icon) and try again" IDCANCEL cancel
+  MessageBox MB_RETRYCANCEL $(MUI_PIDGINNEEDCLOSE) IDCANCEL cancel
   Delete "$PidginDir\plugins\${PRODUCT_NAME}.dll"
   Goto copy
   Return
