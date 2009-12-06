@@ -498,8 +498,9 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from &&
-			(!strcmp(from, JUICK_JID) ||
-			 !strcmp(from, JUBO_JID))) {
+			(g_str_has_prefix(from, JUICK_JID) ||
+			 g_str_has_prefix(from, JUBO_JID))) {
+
 			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
 								       "code"));
 			node = make_message(from,
@@ -509,6 +510,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			*packet = node;
 		}
 	}
+	purple_debug_info(DBGID, "end %s\n", __FUNCTION__);
 }
 
 typedef enum
