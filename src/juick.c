@@ -19,6 +19,23 @@
 #define PURPLE_PLUGINS
 #endif
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#if ENABLE_NLS
+
+#ifdef WIN32
+/* On Win32, include win32dep.h from purple for correct definition
+ * of LOCALEDIR */
+#include "win32dep.h"
+#endif /* WIN32 */
+
+/* internationalisation header */
+#include <glib/gi18n-lib.h>
+
+#endif /* ENABLE_NLS */
+
 #include <gdk/gdkkeysyms.h>
 #include <ctype.h>
 #include <glib.h>
@@ -58,9 +75,9 @@ static GHashTable *ht_signal_handlers = NULL;   /* <text_buffer, handler_id> */
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
 {
-	const char *MORETAGSNOTPLACING = "\n<font color=\"red\">more juick " \
-		"tags are not placing due to reach their maximum count: %d " \
-		"in the one message\n</font>";
+	const char *MORETAGSNOTPLACING = _("\n<font color=\"red\">more juick " \
+		"tags will not placing due to reach their maximum count: %d " \
+		"in the single message\n</font>");
 	gchar *s, *s1;
 	gboolean is_show_max_message = purple_prefs_get_bool(
 						PREF_IS_SHOW_MAX_MESSAGE);
@@ -363,7 +380,7 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 							mid, attach);
 	purple_debug_info(DBGID, "Join all strings\n");
 	if (uname && replyto)
-		s = g_strconcat("@", uname, ": reply to ", replyto, NULL);
+		s = g_strconcat("@", uname, _(": reply to "), replyto, NULL);
 	else if (uname)
 		s = g_strconcat("@", uname, ":", NULL);
 	if (comment) {
@@ -404,11 +421,11 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 
 	if (first) {
 		if (replies)
-			g_string_append_printf(output, "Replies (%s)\n",
+			g_string_append_printf(output, _("Replies (%s)\n"),
 								  replies);
 		if (rid && strcmp(rid, "1") && !replyto)
 			g_string_prepend(output,
-				"Continuation of the previous replies\n");
+				_("Continued discussion\n"));
 	} else
 		g_string_append(output, "\n");
 	g_free(midrid);
@@ -488,8 +505,9 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from &&
-			(!strcmp(from, JUICK_JID) ||
-			 !strcmp(from, JUBO_JID))) {
+			(g_str_has_prefix(from, JUICK_JID) ||
+			 g_str_has_prefix(from, JUBO_JID))) {
+
 			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
 								       "code"));
 			node = make_message(from,
@@ -499,6 +517,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 			*packet = node;
 		}
 	}
+	purple_debug_info(DBGID, "end %s\n", __FUNCTION__);
 }
 
 typedef enum
@@ -996,11 +1015,11 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 	img = gtk_image_new_from_stock(GTK_STOCK_JUMP_TO, GTK_ICON_SIZE_MENU);
 	if (g_strrstr(url, "&reply=@")) {
 		item_s = gtk_image_menu_item_new_with_mnemonic(
-						"_See user info and posts");
+						_("_See user info and posts"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_s);
 		g_signal_connect(G_OBJECT(item_s), "activate",
 			G_CALLBACK(menu_show_activate_cb), (gpointer)url);
-		s = g_strdup_printf("_Insert/replace '%s ' at start", text);
+		s = g_strdup_printf(_("_Insert/replace '%s ' at start"), text);
 		item_i = gtk_image_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		if (is_insert_only)
@@ -1013,32 +1032,32 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 		g_signal_connect(G_OBJECT(item_i), "activate",
 			G_CALLBACK(menu_insert_activate_cb), (gpointer)url);
 
-		s = g_strdup_printf("Insert/replace '%s ' at _cursor", text);
+		s = g_strdup_printf(_("Insert/replace '%s ' at _cursor"), text);
 		item = gtk_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 				G_CALLBACK(menu_insert_replace_activate_cb),
 								(gpointer)url);
-		item = gtk_menu_item_new_with_mnemonic("See user _webpage");
+		item = gtk_menu_item_new_with_mnemonic(_("See user _webpage"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_webpage_activate_cb), (gpointer)url);
-		item = gtk_menu_item_new_with_mnemonic("See user _info");
+		item = gtk_menu_item_new_with_mnemonic(_("See user _info"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
-				G_CALLBACK(menu_user_info_activate_cb), (gpointer)url);
-		item = gtk_menu_item_new_with_mnemonic("See user _posts");
+			G_CALLBACK(menu_user_info_activate_cb), (gpointer)url);
+		item = gtk_menu_item_new_with_mnemonic(_("See user _posts"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_user_posts_activate_cb), (gpointer)url);
-		s = g_strdup_printf("Subscribe _to %s", text + 1);
+		s = g_strdup_printf(_("Subscribe _to %s"), text + 1);
 		item = gtk_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_subscribe_activate_cb), (gpointer)url);
-		s = g_strdup_printf("Unsubscribe _from %s", text + 1);
+		s = g_strdup_printf(_("Unsubscribe _from %s"), text + 1);
 		item = gtk_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
@@ -1047,11 +1066,11 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 		result = TRUE;
 	} else if (g_strrstr(url, "&reply=#")) {
 		item_s = gtk_image_menu_item_new_with_mnemonic(
-							"_See replies to post");
+						_("_See replies to post"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_s);
 		g_signal_connect(G_OBJECT(item_s), "activate",
 			G_CALLBACK(menu_show_activate_cb),(gpointer)url);
-		s = g_strdup_printf("_Insert/replace '%s ' at start", text);
+		s = g_strdup_printf(_("_Insert/replace '%s ' at start"), text);
 		item_i = gtk_image_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item_i);
@@ -1063,28 +1082,28 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 		else
 			gtk_image_menu_item_set_image(
 					GTK_IMAGE_MENU_ITEM(item_s), img);
-		s = g_strdup_printf("Insert/replace '%s ' at _cursor", text);
+		s = g_strdup_printf(_("Insert/replace '%s ' at _cursor"), text);
 		item = gtk_menu_item_new_with_mnemonic(s);
 		g_free(s);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 				G_CALLBACK(menu_insert_replace_activate_cb),
 								(gpointer)url);
-		item = gtk_menu_item_new_with_mnemonic("See post _webpage");
+		item = gtk_menu_item_new_with_mnemonic(_("See post _webpage"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_webpage_activate_cb), (gpointer)url);
 		item = gtk_menu_item_new_with_mnemonic(
-						"Subscribe _to this post");
+						_("Subscribe _to this post"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_subscribe_activate_cb), (gpointer)url);
 		item = gtk_menu_item_new_with_mnemonic(
-						"Unsubscribe _from this post");
+					_("Unsubscribe _from this post"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_unsubscribe_activate_cb), (gpointer)url);
-		item = gtk_menu_item_new_with_mnemonic("R_ecommend this post");
+		item = gtk_menu_item_new_with_mnemonic(_("R_ecommend this post"));
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
 		g_signal_connect(G_OBJECT(item), "activate",
 			G_CALLBACK(menu_recommend_activate_cb), (gpointer)url);
@@ -1150,20 +1169,21 @@ get_plugin_pref_frame(PurplePlugin *plugin)
         frame = purple_plugin_pref_frame_new();
 
         ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_HIGHLIGHTING_TAGS, ("Greyed out tags in the message"));
+		PREF_IS_HIGHLIGHTING_TAGS, (
+					_("Greyed out tags in the message")));
         purple_plugin_pref_frame_add(frame, ppref);
         ppref = purple_plugin_pref_new_with_name_and_label(
 						PREF_IS_SHOW_MAX_MESSAGE,
-                                            ("Show max warning message"));
+                                            (_("Show max warning message")));
         purple_plugin_pref_frame_add(frame, ppref);
 #if PURPLE_VERSION_CHECK(2, 6, 0)
         ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_SHOW_JUICK, ("Show Juick conversation when click on " \
-					"juick tag in other conversation"));
+		PREF_IS_SHOW_JUICK, (_("Show Juick conversation when click " \
+					"on juick tag in other conversation")));
         purple_plugin_pref_frame_add(frame, ppref);
 #endif
         ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_INSERT_ONLY, ("Insert when left click, don't show"));
+		PREF_IS_INSERT_ONLY, (_("Insert when left click, don't show")));
         purple_plugin_pref_frame_add(frame, ppref);
 
 	return frame;
@@ -1272,15 +1292,15 @@ static PurplePluginInfo info =
 	PURPLE_PRIORITY_DEFAULT,                          /**< priority */
 
 	"gtkjuick",                                       /**< id */
-	"Juick",                                          /**< name */
-	"0.2.9",                                            /**< version */
-	"Adds some color and button for juick bot.",      /**< summary */
-	"Adds some color and button for juick bot.\n" \
+	N_("Juick"),                                          /**< name */
+	"0.3",                                            /**< version */
+	N_("Adds some color and button for juick bot."),  /**< summary */
+	N_("Adds some color and button for juick bot.\n" \
 		"Unfortunately pidgin developers have decided that more than " \
 		"100 tags may not be necessary when " \
-		"displaying the message",                 /**< description */
+		"displaying the message"),                /**< description */
 	"owner.mad.epa@gmail.com, pktfag@gmail.com",      /**< author */
-	"http://github.com/pktfag/pidgin-juick-plugin",   /**< homepage */
+	"http://github.com/mad/pidgin-juick-plugin",      /**< homepage */
 	plugin_load,                                      /**< load */
 	plugin_unload,                                    /**< unload */
 	NULL,                                             /**< destroy */
@@ -1298,6 +1318,16 @@ static PurplePluginInfo info =
 static void
 init_plugin(PurplePlugin *plugin)
 {
+#if ENABLE_NLS
+	bindtextdomain(GETTEXT_PACKAGE, LOCALEDIR);
+	bind_textdomain_codeset(GETTEXT_PACKAGE, "UTF-8");
+	textdomain(GETTEXT_PACKAGE);
+#endif /* ENABLE_NLS */
+	/* we have to translate it here as we are in a different textdomain */
+	plugin->info->name = _(plugin->info->name);
+	plugin->info->summary = _(plugin->info->summary);
+	plugin->info->description = _(plugin->info->description);
+
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
 	purple_prefs_add_bool(PREF_IS_SHOW_MAX_MESSAGE, TRUE);

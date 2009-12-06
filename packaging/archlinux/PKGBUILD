@@ -1,0 +1,20 @@
+# Contributor: pktfag
+
+pkgname=pidgin-juick-plugin
+pkgver=0.3.2
+pkgrel=1
+pkgdesc="Pidgin plugin that adds some color and button for juick bot"
+arch=('i686')
+url="http://github.com/mad/pidgin-juick-plugin"
+license=('GPL-3')
+depends=('pidgin>=2.6')
+makedepends=('python')
+source=(http://cloud.github.com/downloads/mad/pidgin-juick-plugin/$pkgname-$pkgver.tar.bz2)
+
+md5sums=('e627430282ae23be9d7996de5a2e4e42')
+
+build() {
+	cd "$srcdir"/$pkgname-$pkgver
+	./waf configure --prefix=/usr || return 1
+	./waf install --destdir="$pkgdir"
+}

@@ -26,22 +26,38 @@
 
 Установить плагин можно одним из способов:
 
-- Скачать нужную версию плагина ([downloads](http://github.com/mad/pidgin-juick-plugin/downloads)):
+Странности с пакетами нужны только для установки перевода на русский. Если перевод вам не нужен, то версия плагина остается такой же, что и раньше, то есть 0.2.9.
 
-        wget http://github.com/mad/pidgin-juick-plugin/downloads/juick.so
-        cp juick.so ~/.purple/plugins/
+- Debian
+        wget http://github.com/mad/pidgin-juick-plugin/downloads/pidgin-juick-plugin.deb
+        dpkg -i pidgin-juick-plugin.deb
+- ArchLinux
+        yaourt pidgin-juick-plugin
+        или взять [PKGBUILD](http://github.com/mad/pidgin-juick-plugin/blob/master/packaging/archlinux/PKGBUILD)
+- Windows
+        wget http://github.com/mad/pidgin-juick-plugin/downloads/pidgin-juick-plugin.exe
+        pidgin-juick-plugin.exe
 
-    пользователи Windows, копируйте в папку `%APPDATA%\\.purple\plugins\`
+- Скачать нужную версию плагина ([downloads](http://github.com/mad/pidgin-juick-plugin/downloads))
 
 - Собрать из исходников (потребуется dev хидеры libpurple и pidgin):
 
-        git clone git://github.com/mad/pidgin-juick-plugin.git
+        Загрузка исходников:
+                wget http://github.com/mad/pidgin-juick-plugin/downloads/pidgin-juick-plugin-0.3.2.tar.bz2
+                tar xjvf pidgin-juick-plugin-0.3.2.tar.bz2
+        или
+                git clone git://github.com/mad/pidgin-juick-plugin.git
+
         cd pidgin-juick-plugin
-        make
-        cp juick.so ~/.purple/plugins/
+        ./waf configure --prefix=/usr
+        sudo ./waf install
 
 Для активации плагина откройте окно пиджина, и нажмите Ctrl+U, появится окно
-со списком плагинов - напротив Juick 0.2 поставьте галочку.
+со списком плагинов - напротив Juick 0.3/Жуйк 0.3 поставьте галочку.
+
+# Новое в жуйкплагине 0.3
+ 1. Переход на систему сборки waf
+ 2. Перевод на русский язык
 
 # Новое в жуйкплагине 0.2.9
  1. Исправлено зависание пиджина, если делаешь рекомендацию (! #1234)
@@ -59,7 +75,6 @@
 Новости к предыдущим версиям плагина находятся в файле ([ChangeLog](http://github.com/mad/pidgin-juick-plugin/blob/master/ChangeLog)).
 
 # TODO
- 1. На русский язык перевести;
- 2. Добавить горячие клавиши;
- 3. Добавить аватары;
- 4. Добавить загрузку превью картинок;
+ 1. Добавить горячие клавиши;
+ 2. Добавить аватары;
+ 3. Добавить загрузку превью картинок;

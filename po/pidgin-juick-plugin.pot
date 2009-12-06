@@ -1,0 +1,137 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2009-11-13 23:35+0300\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../src/juick.c:66
+#, c-format
+msgid ""
+"\n"
+"<font color=\"red\">more juick tags will not placing due to reach their "
+"maximum count: %d in the single message\n"
+"</font>"
+msgstr ""
+
+#: ../src/juick.c:366
+msgid ": reply to "
+msgstr ""
+
+#: ../src/juick.c:402
+#, c-format
+msgid "Replies (%s)\n"
+msgstr ""
+
+#: ../src/juick.c:406
+msgid "Continued discussion\n"
+msgstr ""
+
+#: ../src/juick.c:999
+msgid "_See user info and posts"
+msgstr ""
+
+#: ../src/juick.c:1003 ../src/juick.c:1052
+#, c-format
+msgid "_Insert/replace '%s ' at start"
+msgstr ""
+
+#: ../src/juick.c:1016 ../src/juick.c:1064
+#, c-format
+msgid "Insert/replace '%s ' at _cursor"
+msgstr ""
+
+#: ../src/juick.c:1022
+msgid "See user _webpage"
+msgstr ""
+
+#: ../src/juick.c:1026
+msgid "See user _info"
+msgstr ""
+
+#: ../src/juick.c:1030
+msgid "See user _posts"
+msgstr ""
+
+#: ../src/juick.c:1034
+#, c-format
+msgid "Subscribe _to %s"
+msgstr ""
+
+#: ../src/juick.c:1040
+#, c-format
+msgid "Unsubscribe _from %s"
+msgstr ""
+
+#: ../src/juick.c:1048
+msgid "_See replies to post"
+msgstr ""
+
+#: ../src/juick.c:1070
+msgid "See post _webpage"
+msgstr ""
+
+#: ../src/juick.c:1075
+msgid "Subscribe _to this post"
+msgstr ""
+
+#: ../src/juick.c:1080
+msgid "Unsubscribe _from this post"
+msgstr ""
+
+#: ../src/juick.c:1084
+msgid "R_ecommend this post"
+msgstr ""
+
+#: ../src/juick.c:1123
+msgid "Greyed out tags in the message"
+msgstr ""
+
+#: ../src/juick.c:1127
+msgid "Show max warning message"
+msgstr ""
+
+#: ../src/juick.c:1130
+msgid "Show Juick conversation when click on juick tag in other conversation"
+msgstr ""
+
+#: ../src/juick.c:1134
+msgid "Insert when left click, don't show"
+msgstr ""
+
+#. *< major version
+#. *< minor version
+#. *< type
+#. *< ui_requirement
+#. *< flags
+#. *< dependencies
+#. *< priority
+#. *< id
+#: ../src/juick.c:1243
+msgid "Juick"
+msgstr ""
+
+#. *< name
+#. *< version
+#: ../src/juick.c:1245
+msgid "Adds some color and button for juick bot."
+msgstr ""
+
+#. *< summary
+#: ../src/juick.c:1246
+msgid ""
+"Adds some color and button for juick bot.\n"
+"Unfortunately pidgin developers have decided that more than 100 tags may not "
+"be necessary when displaying the message"
+msgstr ""
