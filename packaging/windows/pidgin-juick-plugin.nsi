@@ -24,7 +24,7 @@
 ; Welcome page
 !insertmacro MUI_PAGE_WELCOME
 ; License page
-!insertmacro MUI_PAGE_LICENSE "COPYING"
+!insertmacro MUI_PAGE_LICENSE "COPYING.txt"
 ; Directory page
 !insertmacro MUI_PAGE_DIRECTORY
 ; Instfiles page
@@ -90,8 +90,8 @@ Section "MainSection" SEC01
   ; move to pidgin plugin directory, check if not busy (pidgin is running)
   call CopyDLL
   ; hard part is done, do the rest now.
-  File "COPYING"
-  File "ChangeLog"
+  File "COPYING.txt"
+  File "ChangeLog.txt"
 SectionEnd
 
 Section -Post
