@@ -1,0 +1,9 @@
+Package: pidgin-juick-plugin
+Source: pidgin-juick-plugin
+Depends: pidgin
+Version: 0.3
+Architecture: i386
+Maintainer: pktfag <pktfag@gmail.com>
+Homepage: http://github.com/mad/pidgin-juick-plugin
+Description: Adds some color and button for juick bot.
+ Adds some color and button for juick bot.
