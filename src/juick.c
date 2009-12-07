@@ -414,10 +414,10 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 		g_string_append_printf(output, " http://juick.com/%s",
 								   midrid);
 	}
-	if (resource == NULL)
-		g_string_append(output, "\n");
-	else
+	if (resource)
 		g_string_append_printf(output, " from %s\n", resource);
+	else
+		g_string_append(output, "\n");
 
 	if (first) {
 		if (replies)
