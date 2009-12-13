@@ -77,25 +77,30 @@ add_warning_message(GString *output, gchar *src, int tag_max)
 {
 	const char *MORETAGSNOTPLACING = _("\n<font color=\"red\">more juick " \
 		"tags will not placing due to reach their maximum count: %d " \
-		"in the single message\n</font>");
+		"in the single message</font>");
 	gchar *s, *s1;
 	gboolean is_show_max_message = purple_prefs_get_bool(
 						PREF_IS_SHOW_MAX_MESSAGE);
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	s = purple_markup_strip_html(src);
-	s1 = g_utf8_strchr(s, -1, '\n');
-	if (s1) {
-		s1 = g_utf8_next_char(s1);
-		g_string_append_len(output, s, s1 - s);
-		if (is_show_max_message)
+	s = strstr(src, "</A>");
+	if (s) {
+		s += 4;
+		g_string_append_len(output, src, s - src);
+		if (is_show_max_message) {
 			g_string_append_printf(output,
 					MORETAGSNOTPLACING, tag_max);
+		}
+		s1 = purple_markup_strip_html(s);
 		g_string_append(output, s1);
-	} else if (s)
-		g_string_append(output, s);
-	g_free(s);
+	} else {
+		if (is_show_max_message) {
+			g_string_append_printf(output,
+					MORETAGSNOTPLACING, tag_max);
+		}
+		g_string_append(output, src);
+	}
 }
 
 static void
@@ -211,7 +216,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	GString *output;
 	gchar *p, *prev, *src;
 	const gchar *account_user;
-	int i = 3, tag_count = 0, tag_max = 92;
+	int i = 3, tag_count = 0, tag_max = 85;
 	gboolean begin = TRUE, b = FALSE;
 	gboolean is_highlighting_tags = purple_prefs_get_bool(
 			PREF_IS_HIGHLIGHTING_TAGS);

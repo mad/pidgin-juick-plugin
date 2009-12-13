@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2009-12-07 20:36+0300\n"
+"POT-Creation-Date: 2009-12-13 15:14+0300\n"
 "PO-Revision-Date: 2009-12-07 20:30+0300\n"
 "Last-Translator: myckolah <myckolah@gmail.com>\n"
 "Language-Team: Ukrainian\n"
@@ -16,106 +16,105 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && n%"
 "10<=4 && (n%100<10 || n%100>=20) ? 1 : 2);\n"
- 
+
 #: ../src/juick.c:78
-#, c-format
+#, fuzzy, c-format
 msgid ""
 "\n"
 "<font color=\"red\">more juick tags will not placing due to reach their "
-"maximum count: %d in the single message\n"
-"</font>"
+"maximum count: %d in the single message</font>"
 msgstr ""
 "\n"
 "<font color=\"red\">більше теґів джуїка не буде розміщено через досягнення "
-"максимальної їх кількості: %d у одному повідомленні\n"
-"</font>"
+"максимальної їх кількості: %d у одному повідомленні</font>"
 
- 
-#: ../src/juick.c:383
+#: ../src/juick.c:388
 msgid ": reply to "
 msgstr ": відповісти на"
- 
-#: ../src/juick.c:424
+
+#: ../src/juick.c:429
 #, c-format
 msgid "Replies (%s)\n"
 msgstr "Відповіді (%s)\n"
- 
-#: ../src/juick.c:428
+
+#: ../src/juick.c:433
 msgid "Continued discussion\n"
 msgstr "Продовження дискусії\n"
- 
-#: ../src/juick.c:1018
+
+#: ../src/juick.c:1023
 msgid "_See user info and posts"
 msgstr "Переглянути інформацію про користувача та _його останні повідомлення"
- 
-#: ../src/juick.c:1022 ../src/juick.c:1073
+
+#: ../src/juick.c:1027 ../src/juick.c:1078
 #, c-format
 msgid "_Insert/replace '%s ' at start"
 msgstr "В_ставити/замінити '%s ' на початку"
- 
-#: ../src/juick.c:1035 ../src/juick.c:1085
+
+#: ../src/juick.c:1040 ../src/juick.c:1090
 #, c-format
 msgid "Insert/replace '%s ' at _cursor"
 msgstr "Вставити/замінити '%s ' під  _курсором"
- 
-#: ../src/juick.c:1042
+
+#: ../src/juick.c:1047
 msgid "See user _webpage"
 msgstr "Переглянути _веб-сторінку користувача"
- 
-#: ../src/juick.c:1046
+
+#: ../src/juick.c:1051
 msgid "See user _info"
 msgstr "Переглянути _інформацію користувача"
- 
-#: ../src/juick.c:1050
+
+#: ../src/juick.c:1055
 msgid "See user _posts"
 msgstr "Переглянути _повідомлення користувача"
- 
-#: ../src/juick.c:1054
+
+#: ../src/juick.c:1059
 #, c-format
 msgid "Subscribe _to %s"
 msgstr "Підписатися _на %s"
- 
-#: ../src/juick.c:1060
+
+#: ../src/juick.c:1065
 #, c-format
 msgid "Unsubscribe _from %s"
 msgstr "Відписатися ві_д %s"
- 
-#: ../src/juick.c:1069
+
+#: ../src/juick.c:1074
 msgid "_See replies to post"
 msgstr "_Переглянути відповіді на повідомлення"
- 
-#: ../src/juick.c:1092
+
+#: ../src/juick.c:1097
 msgid "See post _webpage"
 msgstr "Перейти на _веб-сторінку з повідомленням"
- 
-#: ../src/juick.c:1097
+
+#: ../src/juick.c:1102
 msgid "Subscribe _to this post"
 msgstr "Підписатися _на це повідомлення"
- 
-#: ../src/juick.c:1102
+
+#: ../src/juick.c:1107
 msgid "Unsubscribe _from this post"
 msgstr "Відписатися ві_д цього повідомлення"
- 
-#: ../src/juick.c:1106
+
+#: ../src/juick.c:1111
 msgid "R_ecommend this post"
 msgstr "_Рекомендувати це повідомлення"
- 
-#: ../src/juick.c:1173
+
+#: ../src/juick.c:1178
 msgid "Greyed out tags in the message"
 msgstr "Виділяти теґи у повідомленні"
- 
-#: ../src/juick.c:1177
+
+#: ../src/juick.c:1182
 msgid "Show max warning message"
 msgstr "Показувати попередження про досягнення максимальної кількості теґів"
- 
-#: ../src/juick.c:1181
-msgid "Show Juick conversation when click on juick tag in other conversation"
-msgstr "Показувати повідомлення джуїка при натисканні джуїк-теґа у іншому повідомленні"
- 
+
 #: ../src/juick.c:1186
+msgid "Show Juick conversation when click on juick tag in other conversation"
+msgstr ""
+"Показувати повідомлення джуїка при натисканні джуїк-теґа у іншому "
+"повідомленні"
+
+#: ../src/juick.c:1191
 msgid "Insert when left click, don't show"
 msgstr "Вставляти при натисканні лівою кнопкою, не показувати відповіді"
- 
+
 #. *< major version
 #. *< minor version
 #. *< type
@@ -124,22 +123,23 @@ msgstr "Вставляти при натисканні лівою кнопкою
 #. *< dependencies
 #. *< priority
 #. *< id
-#: ../src/juick.c:1295
+#: ../src/juick.c:1300
 msgid "Juick"
 msgstr "джуїк"
- 
+
 #. *< name
 #. *< version
-#: ../src/juick.c:1297
+#: ../src/juick.c:1302
 msgid "Adds some color and button for juick bot."
 msgstr "Додає кольорів та кнопок джуїк-ботові jubo@nologin.ru"
- 
+
 #. *< summary
-#: ../src/juick.c:1298
+#: ../src/juick.c:1303
 msgid ""
 "Adds some color and button for juick bot.\n"
 "Unfortunately pidgin developers have decided that more than 100 tags may not "
 "be necessary when displaying the message"
-msgstr "Додає кольорів та кнопок джуїк-ботові jubo@nologin.ru\n"
+msgstr ""
+"Додає кольорів та кнопок джуїк-ботові jubo@nologin.ru\n"
 "На жаль, розробники Pidgin’а вирішили, що 100 теґів у одному повідомленні "
 "буде достатньо для кожного"
