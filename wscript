@@ -51,10 +51,16 @@ def configure(conf):
 			args='--cflags --libs',
 			uselib_store='purple',
 			mandatory=True)
-	conf.check_cfg(package='pidgin',
-			args='--cflags --libs',
-			uselib_store='pidgin',
-			mandatory=True)
+	try:
+		conf.check_cfg(package='pidgin',
+				args='--cflags --libs',
+				uselib_store='pidgin',
+				mandatory=True)
+	except:
+		conf.check_cfg(package='carrier',
+				args='--cflags --libs',
+				uselib_store='pidgin',
+				mandatory=True)
 
 	conf.env.append_value('CCFLAGS', '-DHAVE_CONFIG_H')
 

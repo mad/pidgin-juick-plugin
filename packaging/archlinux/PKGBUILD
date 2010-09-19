@@ -1,12 +1,11 @@
-# Contributor: pktfag
-
+# Maintainer: pktfag <pktfag@gmail.com>
 pkgname=pidgin-juick-plugin
 pkgver=0.3.2
 pkgrel=1
 pkgdesc="Pidgin plugin that adds some color and button for juick bot"
-arch=('i686')
+arch=('i686' 'x86_64')
 url="http://github.com/mad/pidgin-juick-plugin"
-license=('GPL-3')
+license=('GPL3')
 depends=('pidgin>=2.6')
 makedepends=('python')
 source=(http://cloud.github.com/downloads/mad/pidgin-juick-plugin/$pkgname-$pkgver.tar.bz2)
