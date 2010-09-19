@@ -31,6 +31,18 @@
 - Debian
         wget http://github.com/mad/pidgin-juick-plugin/downloads/pidgin-juick-plugin.deb
         dpkg -i pidgin-juick-plugin.deb
+
+        или подключить репозиторий @librarian:
+
+                Добавляем ключ:
+                        gpg --keyserver keyserver.ubuntu.com --recv-key 4A03040C
+                        gpg --export 4A03040C | sudo apt-key add -
+                Добавляем репозиторий
+                        echo "deb http://deb.libc6.org/ lenny main" | sudo tee -a /etc/apt/sources.list
+                Обновляем список пакетов:
+                        sudo aptitude update
+                Устанавливаем:
+                        sudo aptitude install pidgin-juick-plugin
 - ArchLinux
         yaourt pidgin-juick-plugin
         или взять [PKGBUILD](http://github.com/mad/pidgin-juick-plugin/blob/master/packaging/archlinux/PKGBUILD)
