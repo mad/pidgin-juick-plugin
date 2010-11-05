@@ -54,6 +54,8 @@
 #include <gtkconv.h>
 #include <gtksound.h>
 
+#define UNUSED(expr) do { (void)(expr); } while (0)
+
 #define DBGID "juick"
 #define JUICK_JID "juick@juick.com"
 #define JUBO_JID "jubo@nologin.ru"
@@ -213,6 +215,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	   char **displaying, PurpleConversation *conv,
 	   PurpleMessageFlags flags)
 {
+	UNUSED(conv);
 	GString *output;
 	gchar *p, *prev, *src;
 	const gchar *account_user;
@@ -474,6 +477,7 @@ make_message(const gchar *from, const gchar *to, const gchar *body)
 static void
 xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 {
+	UNUSED(gc);
 	xmlnode *node;
 	const char *from;
 	gchar *s = NULL;
@@ -756,6 +760,7 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
+	UNUSED(cmd);
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
 	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
@@ -784,6 +789,7 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 static gboolean
 window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 {
+	UNUSED(widget);
 	PurpleConversation *conv = (PurpleConversation *)data;
 	PurpleConvIm *convim;
 	PurpleConnection *gc;
@@ -810,6 +816,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 static void
 attach_to_conversation(gpointer data, gpointer user_data)
 {
+	UNUSED(user_data);
 	PurpleConversation *conv = (PurpleConversation *) data;
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	gulong handler_id;
@@ -830,6 +837,7 @@ attach_to_conversation(gpointer data, gpointer user_data)
 static void
 detach_from_conversation(gpointer data, gpointer user_data)
 {
+	UNUSED(user_data);
 	PurpleConversation *conv = (PurpleConversation *) data;
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	gulong handler_id;
@@ -945,54 +953,63 @@ process_link(const gchar *url, JuickLinkStatus status)
 static void
 menu_show_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_SHOW);
 }
 
 static void
 menu_insert_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_INSERT);
 }
 
 static void
 menu_insert_replace_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_INSERT_WITH_REPLACE);
 }
 
 static void
 menu_user_info_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_USER_INFO);
 }
 
 static void
 menu_user_posts_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_USER_POSTS);
 }
 
 static void
 menu_subscribe_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_SUBSCRIBE);
 }
 
 static void
 menu_unsubscribe_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_UNSUBSCRIBE);
 }
 
 static void
 menu_webpage_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_WEBPAGE);
 }
 
 static void
 menu_recommend_activate_cb(GtkMenuItem *menuitem, gchar *link)
 {
+	UNUSED(menuitem);
 	process_link(link, JUICK_LINK_RECOMMEND);
 }
 
@@ -1120,6 +1137,7 @@ juick_context_menu(GtkWidget *menu, const gchar *url, const gchar *text)
 static gboolean
 juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
 {
+	UNUSED(imhtml);
         const gchar * url = gtk_imhtml_link_get_url(link);
 
         purple_debug_info(DBGID, "%s called\n", __FUNCTION__);
@@ -1133,6 +1151,7 @@ juick_url_clicked_cb(GtkIMHtml * imhtml, GtkIMHtmlLink * link)
 static gboolean
 context_menu(GtkIMHtml *imhtml, GtkIMHtmlLink *link, GtkWidget *menu)
 {
+	UNUSED(imhtml);
         const gchar *url = gtk_imhtml_link_get_url(link);
 	const gchar *body = "&body=";
 	gchar *text;
@@ -1168,6 +1187,7 @@ static void *juick_notify_uri(const char *uri) {
 static PurplePluginPrefFrame*
 get_plugin_pref_frame(PurplePlugin *plugin)
 {
+	UNUSED(plugin);
         PurplePluginPrefFrame *frame;
         PurplePluginPref *ppref;
 
@@ -1298,7 +1318,7 @@ static PurplePluginInfo info =
 
 	"gtkjuick",                                       /**< id */
 	N_("Juick"),                                          /**< name */
-	"0.3",                                            /**< version */
+	"0.3.3",                                            /**< version */
 	N_("Adds some color and button for juick bot."),  /**< summary */
 	N_("Adds some color and button for juick bot.\n" \
 		"Unfortunately pidgin developers have decided that more than " \

@@ -6,12 +6,12 @@ import os, sys
 import Options
 
 APPNAME = 'pidgin-juick-plugin'
-VERSION = '0.3.2'
+VERSION = '0.3.3'
 
-srcdir = '.'
-blddir = 'build'
+top = '.'
+out = 'build'
 
-def set_options(opt):
+def options(opt):
 	opt.tool_options('compiler_cc')
 	opt.tool_options('intltool')
 	group = opt.add_option_group ('Install', '')
@@ -29,14 +29,15 @@ def set_options(opt):
 
 def configure(conf):
 	is_win32=sys.platform=='win32'
+	conf.setenv('default')
 
 	if Options.options.win32:
 		# create the second environment, set the variant and set its name
-		env = conf.env.copy()
-		env.set_variant('win32')
-		conf.set_env_name('win32', env)
+		#env = conf.env.copy()
+		#env.set_variant('win32')
+		#conf.set_env_name('win32', env)
 		# call the debug environment
-		conf.setenv('win32')
+		conf.setenv('win32', env = conf.env.derive())
 
 	conf.check_tool('compiler_cc')
 	#conf.check_tool('gcc')
@@ -56,7 +57,7 @@ def configure(conf):
 			uselib_store='pidgin',
 			mandatory=True)
 
-	conf.env.append_value('CCFLAGS', '-DHAVE_CONFIG_H')
+	conf.env.append_value('CFLAGS', ['-DHAVE_CONFIG_H', '-Wall', '-Wextra'])
 
 	if is_win32 or Options.options.win32:
 		# on Windows LOCALEDIR define in purple win32dep.h
@@ -92,7 +93,7 @@ def build(bld):
 				)
 
 	bld.new_task_gen(
-			features = 'cc cshlib',
+			features = 'c cshlib',
 			source = 'src/juick.c',
 			includes = '.',
 			target = APPNAME,
