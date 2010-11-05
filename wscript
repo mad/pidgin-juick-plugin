@@ -105,47 +105,6 @@ def build(bld):
 		bld.install_as(envx['PREFIX'] + '/COPYING.txt', 'COPYING')
 		bld.install_files(envx['PREFIX'], 'packaging/windows/pidgin-juick-plugin.nsi')
 
-def dist():
-	import Utils, Scripting
-	if sys.hexversion >= 0x2060000:
-		import subprocess as pproc
-	else:
-		import pproc
-	from Logs import info
-	import tarfile, shutil
-	try:
-		tmp_folder = APPNAME + '-' + VERSION
-		arch_name = tmp_folder+'.tar.'+Scripting.g_gz
-
-		# remove the previous dir
-		try:
-			shutil.rmtree(tmp_folder)
-		except (OSError, IOError):
-			pass
-
-		# remove the previous archive
-		try:
-			os.remove(arch_name)
-		except (OSError, IOError):
-			pass
-
-		os.makedirs(tmp_folder)
-		p1 = pproc.Popen(['git', 'archive', 'HEAD'], stdout=pproc.PIPE)
-		p2 = pproc.Popen(['tar', '-C', tmp_folder, '-xf', '-'], stdin=p1.stdout)
-
-		tar = tarfile.open(arch_name, 'w:' + Scripting.g_gz)
-		tar.add(tmp_folder)
-		tar.close()
-
-		try: from hashlib import sha1 as sha
-		except ImportError: from sha import sha
-		try:
-			digest = " (sha=%r)" % sha(Utils.readf(arch_name)).hexdigest()
-		except:
-			digest = ''
-
-		info('New archive created: %s%s' % (arch_name, digest))
-		if os.path.exists(tmp_folder): shutil.rmtree(tmp_folder)
-	except:
-		Scripting.dist(APPNAME, VERSION)
-
+def dist(ctx):
+	ctx.algo = 'zip'
+	ctx.excl = '**/.waf* **/.git **/build **/.lock* **/*.swp'
