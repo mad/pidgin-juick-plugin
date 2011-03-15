@@ -53,6 +53,8 @@
 #include <gtkimhtml.h>
 #include <gtkconv.h>
 #include <gtksound.h>
+#include <gtkprefs.h>
+#include <gtkutils.h>
 
 #define UNUSED(expr) do { (void)(expr); } while (0)
 
@@ -1204,34 +1206,220 @@ static void *juick_notify_uri(const char *uri) {
 }
 #endif
 
-static PurplePluginPrefFrame*
+enum {
+	STRING0_COLUMN,
+	STRING1_COLUMN,
+	IS_ON_COLUMN,
+	N_COLUMNS
+};
+
+static void
+populate_model(GtkListStore *store)
+{
+	GtkTreeIter iter;
+
+	gtk_list_store_append(store, &iter);
+	gtk_list_store_set(store, &iter,
+			STRING0_COLUMN, "juick@juick.com",
+			STRING1_COLUMN, "juick@juick.com",
+			IS_ON_COLUMN, TRUE,
+			-1);
+	gtk_list_store_append(store, &iter);
+	gtk_list_store_set(store, &iter,
+			STRING0_COLUMN, "jubo@nologin.ru",
+			STRING1_COLUMN, "juick@juick.com",
+			IS_ON_COLUMN, TRUE,
+			-1);
+	gtk_list_store_append(store, &iter);
+	gtk_list_store_set(store, &iter,
+			STRING0_COLUMN, "psto@psto.net",
+			STRING1_COLUMN, "psto@psto.net",
+			IS_ON_COLUMN, TRUE,
+			-1);
+}
+
+static void
+add_button_clicked_cb(GtkWidget *widget, GtkTreeSelection *selection)
+{
+	UNUSED(widget);
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	gtk_tree_selection_get_selected (selection, &model, &iter);
+	gtk_list_store_append (GTK_LIST_STORE(model), &iter);
+	gtk_list_store_set    (GTK_LIST_STORE(model), &iter,
+				0, _("unnamed"),
+				1, _("unnamed"), -1);
+	gtk_tree_selection_select_iter (selection, &iter);
+}
+
+static void
+del_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
+{
+	UNUSED(widget);
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	if (gtk_tree_selection_get_selected (selection, &model, &iter))
+	{
+		if (gtk_list_store_remove(GTK_LIST_STORE(model), &iter))
+		{
+			gtk_tree_selection_select_iter(selection,&iter);
+		}
+	}
+}
+
+static void
+up_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
+{
+	UNUSED(widget);
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	if (gtk_tree_selection_get_selected (selection, &model, &iter))
+	{
+		GtkTreePath *path = gtk_tree_model_get_path (model, &iter);
+		if (gtk_tree_path_prev (path))
+		{
+			GtkTreeIter iter1 = iter;
+			gtk_tree_model_get_iter (model, &iter1, path);
+			gtk_list_store_swap (GTK_LIST_STORE (model),
+					&iter, &iter1);
+		}
+		gtk_tree_path_free (path);
+	}
+}
+
+static void
+down_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
+{
+	UNUSED(widget);
+	GtkTreeIter iter;
+	GtkTreeModel *model;
+
+	if (gtk_tree_selection_get_selected (selection, &model, &iter))
+	{
+		GtkTreeIter iter1 = iter;
+		if (gtk_tree_model_iter_next (model, &iter1))
+		{
+			gtk_list_store_swap (GTK_LIST_STORE (model),
+					&iter, &iter1);
+		}
+	}
+}
+
+static GtkWidget*
 get_plugin_pref_frame(PurplePlugin *plugin)
 {
 	UNUSED(plugin);
-        PurplePluginPrefFrame *frame;
-        PurplePluginPref *ppref;
+	GtkWidget *ret, *win, *tree, *button_box, *button;
+	GtkWidget *vbox;
+	GtkCellRenderer *renderer;
+	GtkTreeViewColumn *column;
+	GtkListStore *store;
+	GtkTreeSelection *selection;
 
-        frame = purple_plugin_pref_frame_new();
+	ret = gtk_vbox_new(FALSE, PIDGIN_HIG_CAT_SPACE);
+	gtk_container_set_border_width(GTK_CONTAINER(ret), PIDGIN_HIG_BORDER);
 
-        ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_HIGHLIGHTING_TAGS, (
-					_("Greyed out tags in the message")));
-        purple_plugin_pref_frame_add(frame, ppref);
-        ppref = purple_plugin_pref_new_with_name_and_label(
-						PREF_IS_SHOW_MAX_MESSAGE,
-                                            (_("Show max warning message")));
-        purple_plugin_pref_frame_add(frame, ppref);
+//	sg = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
+
+	vbox = pidgin_make_frame(ret, _("Parameters"));
+	pidgin_prefs_checkbox(
+			_("Greyed out tags in the message"),
+			PREF_IS_HIGHLIGHTING_TAGS,
+			vbox);
+	pidgin_prefs_checkbox(
+			_("Show max warning message"),
+			PREF_IS_SHOW_MAX_MESSAGE,
+			vbox);
 #if PURPLE_VERSION_CHECK(2, 6, 0)
-        ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_SHOW_JUICK, (_("Show Juick conversation when click " \
-					"on juick tag in other conversation")));
-        purple_plugin_pref_frame_add(frame, ppref);
+	pidgin_prefs_checkbox(
+			 _("Show Juick conversation when click " \
+					"on juick tag in other conversation"),
+			PREF_IS_SHOW_JUICK,
+			vbox);
 #endif
-        ppref = purple_plugin_pref_new_with_name_and_label(
-		PREF_IS_INSERT_ONLY, (_("Insert when left click, don't show")));
-        purple_plugin_pref_frame_add(frame, ppref);
+	pidgin_prefs_checkbox(
+			 _("Insert when left click, don't show"),
+			PREF_IS_INSERT_ONLY,
+			vbox);
+	vbox = pidgin_make_frame(ret, _("Microblog Accounts"));
 
-	return frame;
+	win = gtk_scrolled_window_new(0, 0);
+	gtk_box_pack_start(GTK_BOX(vbox), win, TRUE, TRUE, 0);
+	gtk_scrolled_window_set_shadow_type(GTK_SCROLLED_WINDOW(win),
+						GTK_SHADOW_IN);
+	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(win),
+			GTK_POLICY_NEVER,
+			GTK_POLICY_AUTOMATIC);
+	gtk_widget_show(win);
+
+	store = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN);
+	populate_model(store);
+	plugin->extra = store;
+
+	tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(tree), TRUE);
+	gtk_widget_set_size_request(tree, -1, 200);
+
+	renderer = gtk_cell_renderer_text_new();
+	g_object_set(G_OBJECT(renderer), "editable", TRUE, NULL);
+	column = gtk_tree_view_column_new_with_attributes(_("In"),
+			renderer, "text", STRING0_COLUMN, NULL);
+	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
+	gtk_tree_view_column_set_fixed_width(column, 150);
+	gtk_tree_view_column_set_resizable(column, TRUE);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+
+	column = gtk_tree_view_column_new_with_attributes(_("Out"),
+			renderer, "text", STRING1_COLUMN, NULL);
+	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
+	gtk_tree_view_column_set_fixed_width(column, 150);
+	gtk_tree_view_column_set_resizable(column, TRUE);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+
+	renderer = gtk_cell_renderer_toggle_new();
+	g_object_set(G_OBJECT(renderer), "activatable", TRUE, NULL);
+	column = gtk_tree_view_column_new_with_attributes(_("Active"),
+			renderer, "active", IS_ON_COLUMN, NULL);
+	gtk_tree_view_column_set_resizable(column, TRUE);
+	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+
+	gtk_tree_selection_set_mode(
+			gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)),
+			GTK_SELECTION_MULTIPLE);
+	gtk_container_add(GTK_CONTAINER(win), tree);
+	gtk_widget_show(tree);
+
+	selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(tree));
+	gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
+
+	button_box = gtk_hbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
+	gtk_box_pack_start(GTK_BOX(vbox), button_box, FALSE, FALSE, 0);
+
+	button  = gtk_button_new_from_stock(GTK_STOCK_ADD);
+	gtk_box_pack_end(GTK_BOX(button_box), button, FALSE, FALSE, 0);
+	g_signal_connect(GTK_OBJECT(button), "clicked",
+		GTK_SIGNAL_FUNC(add_button_clicked_cb), selection);
+
+	button  = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	gtk_box_pack_end(GTK_BOX(button_box), button, FALSE, FALSE, 0);
+	g_signal_connect(GTK_OBJECT(button), "clicked",
+		GTK_SIGNAL_FUNC(del_button_clicked_cb), selection);
+
+	button  = gtk_button_new_from_stock(GTK_STOCK_GO_UP);
+	gtk_box_pack_end(GTK_BOX(button_box), button, FALSE, FALSE, 0);
+	g_signal_connect(GTK_OBJECT(button), "clicked",
+		GTK_SIGNAL_FUNC(up_button_clicked_cb), selection);
+
+	button  = gtk_button_new_from_stock(GTK_STOCK_GO_DOWN);
+	gtk_box_pack_end(GTK_BOX(button_box), button, FALSE, FALSE, 0);
+	g_signal_connect(GTK_OBJECT(button), "clicked",
+		GTK_SIGNAL_FUNC(down_button_clicked_cb), selection);
+	gtk_widget_show(button_box);
+
+	return ret;
 }
 
 static gboolean
@@ -1313,11 +1501,10 @@ plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
-static PurplePluginUiInfo prefs_info =
+static PidginPluginUiInfo ui_info =
 {
 	get_plugin_pref_frame,
 	0, /* page_num (reserved) */
-	NULL, /* frame (reserved */
 	/* padding */
 	NULL,
 	NULL,
@@ -1349,9 +1536,9 @@ static PurplePluginInfo info =
 	plugin_load,                                      /**< load */
 	plugin_unload,                                    /**< unload */
 	NULL,                                             /**< destroy */
-	NULL,                                             /**< ui_info */
+	&ui_info,                                             /**< ui_info */
 	NULL,                                             /**< extra_info */
-	&prefs_info,                                      /**< prefs_info */
+	NULL,                                             /**< prefs_info */
 	NULL,                                             /**< actions */
 							  /**< padding */
 	NULL,
