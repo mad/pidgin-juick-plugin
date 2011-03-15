@@ -171,11 +171,10 @@ get_juick_tag(gchar *text, gchar **result)
 }
 
 static gboolean
-make_juick_tag(GString *output, const gchar *account_user, gchar **current,
-							int *tag_count)
+make_juick_tag(GString *output, gchar **current, int *tag_count)
 {
 	const char *JUICK_TAG =
-		"<a href=\"j://q?account=%s&reply=%c&body=%s\">%s</a>";
+		"<a href=\"j://q?reply=%c&body=%s\">%s</a>";
 	gchar *p = *current, *prev = NULL, *msgid, old_char, reply = '\0';
 	int result = FALSE;
 	gboolean is_reply;
@@ -193,16 +192,15 @@ make_juick_tag(GString *output, const gchar *account_user, gchar **current,
 		msgid = prev;
 		old_char = *p;
 		*p = '\0';
-		g_string_append_printf(output, JUICK_TAG, account_user, reply,
-								msgid, msgid);
+		g_string_append_printf(output, JUICK_TAG, reply, msgid, msgid);
 		++*tag_count; ++*tag_count;
 		*p = old_char;
 		if (*p == ':' && reply == '@')
 			result = TRUE;
 	} else {
 		if (reply != '\0')
-			g_string_append_printf(output, JUICK_TAG, account_user,
-							reply, prev, prev);
+			g_string_append_printf(output, JUICK_TAG, reply,
+								prev, prev);
 		else
 			g_string_append(output, prev);
 	}
@@ -215,10 +213,9 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	   char **displaying, PurpleConversation *conv,
 	   PurpleMessageFlags flags)
 {
-	UNUSED(conv);
+	UNUSED(conv); UNUSED(account);
 	GString *output;
 	gchar *p, *prev, *src;
-	const gchar *account_user;
 	int i = 3, tag_count = 0, tag_max = 85;
 	gboolean begin = TRUE, b = FALSE;
 	gboolean is_highlighting_tags = purple_prefs_get_bool(
@@ -236,7 +233,6 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 	src = *displaying;
 	output = g_string_sized_new(strlen(src));
 
-	account_user = purple_account_get_username(account);
 	// now search message text and look for things to highlight
 	p = src;
 	prev = p;
@@ -254,8 +250,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 		}
 		if(((*p == '@'|| *p == '#') && b) || (*p == '@' && begin))
 		{
-			if (make_juick_tag(output, account_user, &p,
-								&tag_count))
+			if (make_juick_tag(output, &p, &tag_count))
 				i = 0;
 			else
 				i = 3;
@@ -757,22 +752,47 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	g_free(text);
 }
 
+static PurpleAccount *
+get_active_account()
+{
+	GList *wins, *convs;
+	PidginWindow *win;
+	const PidginConversation *conv;
+
+	for (wins = pidgin_conv_windows_get_list(); wins != NULL;
+							wins = wins->next) {
+		win = wins->data;
+
+		for (convs = win->gtkconvs;
+		     convs != NULL;
+		     convs = convs->next) {
+
+			conv = convs->data;
+
+			if (pidgin_conv_window_is_active_conversation(
+							conv->active_conv))
+				return purple_conversation_get_account(
+							conv->active_conv);
+		}
+	}
+	return NULL;
+}
+
 static gboolean
 juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 {
 	UNUSED(cmd);
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
-	gchar *body = NULL, *account_user = NULL, *reply = NULL, *send = NULL;
+	gchar *body = NULL, *reply = NULL, *send = NULL;
 
 	purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, proto);
 
 	if (g_ascii_strcasecmp(proto, "j") == 0) {
 		body = g_hash_table_lookup(params, "body");
-		account_user = g_hash_table_lookup(params, "account");
 		reply = g_hash_table_lookup(params, "reply");
 		send = g_hash_table_lookup(params, "send");
-		account = purple_accounts_find(account_user, "prpl-jabber");
+		account = get_active_account();
 		if (body && account) {
 			conv = purple_conversation_new(
 				PURPLE_CONV_TYPE_IM, account, JUICK_JID);
@@ -1318,7 +1338,7 @@ static PurplePluginInfo info =
 
 	"gtkjuick",                                       /**< id */
 	N_("Juick"),                                          /**< name */
-	"0.3.3",                                            /**< version */
+	"0.3.4",                                            /**< version */
 	N_("Adds some color and button for juick bot."),  /**< summary */
 	N_("Adds some color and button for juick bot.\n" \
 		"Unfortunately pidgin developers have decided that more than " \

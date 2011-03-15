@@ -6,7 +6,7 @@ import os, sys
 import Options
 
 APPNAME = 'pidgin-juick-plugin'
-VERSION = '0.3.3'
+VERSION = '0.3.4'
 
 top = '.'
 out = 'build'
