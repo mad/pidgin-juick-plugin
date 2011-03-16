@@ -797,26 +797,7 @@ get_active_account_and_name(PurpleAccount **account, gchar **name)
 	GList *wins, *convs;
 	PidginWindow *win;
 	const PidginConversation *conv;
-	const gchar *convname;
-	gchar *str;
 
-//	for (wins = pidgin_conv_windows_get_list(); wins != NULL;
-//							wins = wins->next) {
-//		win = wins->data;
-//
-//		for (convs = win->gtkconvs;
-//		     convs != NULL;
-//		     convs = convs->next) {
-//
-//			conv = convs->data;
-//
-//			convname = purple_conversation_get_name(
-//							conv->active_conv);
-//			purple_debug_info(DBGID, "%s %s\n", "qwer", convname);
-//			*account = purple_conversation_get_account(
-//							conv->active_conv);
-//		}
-//	}
 	for (wins = pidgin_conv_windows_get_list(); wins != NULL;
 							wins = wins->next) {
 		win = wins->data;
@@ -827,20 +808,10 @@ get_active_account_and_name(PurpleAccount **account, gchar **name)
 
 			conv = convs->data;
 
-			purple_debug_info(DBGID, "%s\n", "qwer1");
 			if (pidgin_conv_window_is_active_conversation(
 							conv->active_conv))
 				*name = g_strdup(purple_conversation_get_name(
 							conv->active_conv));
-//				convname = "psto";
-//				convname = purple_conversation_get_title(
-//							conv->active_conv);
-//				str = strchr(convname, '/');
-//				if (str)
-//					*name = g_strndup(convname, str - convname);
-//				else
-//					*name = g_strdup(convname);
-//				purple_debug_info(DBGID, "%s %s %s\n", "qwer", convname, *name);
 				*account = purple_conversation_get_account(
 							conv->active_conv);
 		}
@@ -861,9 +832,7 @@ conversation_new_with_model(PurpleAccount *account, const char *name,
 		gtk_tree_model_get(model, &iter, IN_COLUMN, &instr,
 						OUT_COLUMN, &outstr,
 						ACTIVE_COLUMN, &active, -1);
-		purple_debug_info(DBGID, "%s %s %s %s\n", "qwer2", name, instr, outstr);
 		if (active && g_str_has_prefix(name, instr)) {
-			purple_debug_info(DBGID, "%s %s %s\n", "qwer3", instr, outstr);
 			ret = purple_conversation_new(
 				PURPLE_CONV_TYPE_IM, account, outstr);
 			break;
