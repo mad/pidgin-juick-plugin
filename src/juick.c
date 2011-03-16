@@ -720,7 +720,8 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	gchar *s = NULL, *s1, *text = NULL;
 
 	purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, name);
-	if (name && !g_str_has_prefix(name, JUICK_JID))
+	if (name && !g_str_has_prefix(name, JUICK_JID) &&
+			!g_str_has_prefix(name, JUBO_JID))
 		is_insert_only = TRUE;
 
 	text = g_strconcat(body, " ", NULL);
@@ -871,13 +872,10 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		body = g_hash_table_lookup(params, "body");
 		reply = g_hash_table_lookup(params, "reply");
 		send = g_hash_table_lookup(params, "send");
-		purple_debug_info(DBGID, "%s\n", "asdf");
 		get_active_account_and_name(&account, &name);
-		purple_debug_info(DBGID, "%s\n", "asdf1");
 		if (body && account && name) {
 			conv = conversation_new_with_model(account, name,
 						mblog_store);
-			purple_debug_info(DBGID, "%s\n", "asdf2");
 			if (conv) {
 				if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
 					// don't work in pidgin 2.4, 2.5
