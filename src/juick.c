@@ -76,6 +76,15 @@ const gchar *IMAGE_PREFIX = "http://i.juick.com/p";
 
 static GHashTable *ht_signal_handlers = NULL;   /* <text_buffer, handler_id> */
 
+enum {
+	IN_COLUMN,
+	OUT_COLUMN,
+	ACTIVE_COLUMN,
+	N_COLUMNS
+};
+
+static GtkTreeModel *mblog_store;
+
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
 {
@@ -161,7 +170,7 @@ get_juick_tag(gchar *text, gchar **result)
 			*p == '-' || *p == '_' || *p == '.' || *p == '@'))
 			p = g_utf8_next_char(p);
 	} else if (*text == '#') {
-		while (*p && (g_unichar_isdigit(g_utf8_get_char(p)) ||
+		while (*p && (g_unichar_isalnum(g_utf8_get_char(p)) ||
 								*p == '/')) {
 			if (*p == '/')
 				is_reply = TRUE;
@@ -211,6 +220,32 @@ make_juick_tag(GString *output, gchar **current, int *tag_count)
 }
 
 static gboolean
+model_has_prefix(const char *who, GtkTreeModel *model, gboolean in)
+{
+	GtkTreeIter iter;
+	gchar *instr = NULL, *outstr = NULL;
+	gboolean valid, active;
+
+	valid = gtk_tree_model_get_iter_first(model, &iter);
+	while (valid) {
+		gtk_tree_model_get(model, &iter, IN_COLUMN, &instr,
+						OUT_COLUMN, &outstr,
+						ACTIVE_COLUMN, &active, -1);
+		if (active && 
+			((in && g_str_has_prefix(who, instr)) ||
+			 (!in && g_str_has_prefix(who, outstr)))) {
+			g_free(instr);
+			g_free(outstr);
+			return TRUE;
+		}
+		g_free(instr);
+		g_free(outstr);
+		valid = gtk_tree_model_iter_next(model, &iter);
+	}
+	return FALSE;
+}
+
+static gboolean
 juick_on_displaying(PurpleAccount *account, const char *who,
 	   char **displaying, PurpleConversation *conv,
 	   PurpleMessageFlags flags)
@@ -225,8 +260,7 @@ juick_on_displaying(PurpleAccount *account, const char *who,
 
 	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
-	if( (!g_str_has_prefix(who, JUICK_JID) &&
-		!g_str_has_prefix(who, JUBO_JID)) ||
+	if( (!model_has_prefix(who, mblog_store, TRUE)) ||
                 (flags & PURPLE_MESSAGE_SYSTEM) )
 	{
 		return FALSE;
@@ -511,8 +545,7 @@ xmlnode_received_cb(PurpleConnection *gc, xmlnode **packet)
 		g_string_free(output, TRUE);
 		node = xmlnode_get_child(*packet, "error");
 		if (node && from &&
-			(g_str_has_prefix(from, JUICK_JID) ||
-			 g_str_has_prefix(from, JUBO_JID))) {
+			(model_has_prefix(from, mblog_store, TRUE))) {
 
 			s = g_strdup_printf("error %s", xmlnode_get_attrib(node,
 								       "code"));
@@ -670,7 +703,7 @@ change_text_in_buffer(GtkTextBuffer *buffer, const gchar* text,
 
 static void
 send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
-							const gchar reply)
+					const gchar reply, const gchar *name)
 {
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	PurpleConvIm *convim = PURPLE_CONV_IM(conv);
@@ -678,6 +711,10 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 			PIDGIN_CONVERSATION(conv)->active_conv);
 	gboolean is_insert_only = purple_prefs_get_bool(PREF_IS_INSERT_ONLY);
 	gchar *s = NULL, *s1, *text = NULL;
+
+	purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, name);
+	if (name && !g_str_has_prefix(name, JUICK_JID))
+		is_insert_only = TRUE;
 
 	text = g_strconcat(body, " ", NULL);
 
@@ -754,13 +791,32 @@ send_link(PurpleConversation *conv, const gchar *send, const gchar *body,
 	g_free(text);
 }
 
-static PurpleAccount *
-get_active_account()
+static void
+get_active_account_and_name(PurpleAccount **account, gchar **name)
 {
 	GList *wins, *convs;
 	PidginWindow *win;
 	const PidginConversation *conv;
+	const gchar *convname;
+	gchar *str;
 
+//	for (wins = pidgin_conv_windows_get_list(); wins != NULL;
+//							wins = wins->next) {
+//		win = wins->data;
+//
+//		for (convs = win->gtkconvs;
+//		     convs != NULL;
+//		     convs = convs->next) {
+//
+//			conv = convs->data;
+//
+//			convname = purple_conversation_get_name(
+//							conv->active_conv);
+//			purple_debug_info(DBGID, "%s %s\n", "qwer", convname);
+//			*account = purple_conversation_get_account(
+//							conv->active_conv);
+//		}
+//	}
 	for (wins = pidgin_conv_windows_get_list(); wins != NULL;
 							wins = wins->next) {
 		win = wins->data;
@@ -771,13 +827,57 @@ get_active_account()
 
 			conv = convs->data;
 
+			purple_debug_info(DBGID, "%s\n", "qwer1");
 			if (pidgin_conv_window_is_active_conversation(
 							conv->active_conv))
-				return purple_conversation_get_account(
+				*name = g_strdup(purple_conversation_get_name(
+							conv->active_conv));
+//				convname = "psto";
+//				convname = purple_conversation_get_title(
+//							conv->active_conv);
+//				str = strchr(convname, '/');
+//				if (str)
+//					*name = g_strndup(convname, str - convname);
+//				else
+//					*name = g_strdup(convname);
+//				purple_debug_info(DBGID, "%s %s %s\n", "qwer", convname, *name);
+				*account = purple_conversation_get_account(
 							conv->active_conv);
 		}
 	}
-	return NULL;
+}
+
+PurpleConversation *
+conversation_new_with_model(PurpleAccount *account, const char *name,
+						GtkTreeModel *model)
+{
+	GtkTreeIter iter;
+	gchar *instr, *outstr;
+	gboolean valid, active;
+	PurpleConversation *ret = NULL;
+
+	valid = gtk_tree_model_get_iter_first(model, &iter);
+	while (valid) {
+		gtk_tree_model_get(model, &iter, IN_COLUMN, &instr,
+						OUT_COLUMN, &outstr,
+						ACTIVE_COLUMN, &active, -1);
+		purple_debug_info(DBGID, "%s %s %s %s\n", "qwer2", name, instr, outstr);
+		if (active && g_str_has_prefix(name, instr)) {
+			purple_debug_info(DBGID, "%s %s %s\n", "qwer3", instr, outstr);
+			ret = purple_conversation_new(
+				PURPLE_CONV_TYPE_IM, account, outstr);
+			break;
+		}
+		g_free(instr); instr = NULL;
+		g_free(outstr); outstr = NULL;
+		valid = gtk_tree_model_iter_next(model, &iter);
+	}
+	if (!valid)
+		ret = purple_conversation_new(
+			PURPLE_CONV_TYPE_IM, account, JUICK_JID);
+	g_free(instr);
+	g_free(outstr);
+	return ret;
 }
 
 static gboolean
@@ -786,7 +886,8 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 	UNUSED(cmd);
 	PurpleAccount *account = NULL;
 	PurpleConversation *conv = NULL;
-	gchar *body = NULL, *reply = NULL, *send = NULL;
+	gchar *body = NULL, *reply = NULL, *send = NULL, *name = NULL;
+	gboolean ret = FALSE;
 
 	purple_debug_info(DBGID, "%s %s\n", __FUNCTION__, proto);
 
@@ -794,18 +895,25 @@ juick_uri_handler(const char *proto, const char *cmd, GHashTable *params)
 		body = g_hash_table_lookup(params, "body");
 		reply = g_hash_table_lookup(params, "reply");
 		send = g_hash_table_lookup(params, "send");
-		account = get_active_account();
-		if (body && account) {
-			conv = purple_conversation_new(
-				PURPLE_CONV_TYPE_IM, account, JUICK_JID);
-			if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
-				// don't work in pidgin 2.4, 2.5
-				purple_conversation_present(conv);
-			send_link(conv, send, body, reply[0]);
-			return TRUE;
+		purple_debug_info(DBGID, "%s\n", "asdf");
+		get_active_account_and_name(&account, &name);
+		purple_debug_info(DBGID, "%s\n", "asdf1");
+		if (body && account && name) {
+			conv = conversation_new_with_model(account, name,
+						mblog_store);
+			purple_debug_info(DBGID, "%s\n", "asdf2");
+			if (conv) {
+				if (purple_prefs_get_bool(PREF_IS_SHOW_JUICK))
+					// don't work in pidgin 2.4, 2.5
+					purple_conversation_present(conv);
+				send_link(conv, send, body, reply[0], name);
+				ret = TRUE;
+			} else
+				ret = FALSE;
+			g_free(name);
 		}
 	}
-	return FALSE;
+	return ret;
 }
 
 static gboolean
@@ -816,7 +924,7 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	PurpleConvIm *convim;
 	PurpleConnection *gc;
 
-	if (!g_str_has_prefix(conv->name, JUICK_JID))
+	if (!model_has_prefix(conv->name, mblog_store, FALSE))
 		return FALSE;
 
 	convim = PURPLE_CONV_IM(conv);
@@ -829,7 +937,8 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 				purple_conv_im_send(convim, "#");
 				break;
 			case GDK_2:
-				send_iq(gc, NULL, IQ_NEW_MESSAGES);
+				// TDDO:
+				//send_iq(gc, NULL, IQ_NEW_MESSAGES);
 				break;
 		}
 	return FALSE;
@@ -843,7 +952,7 @@ attach_to_conversation(gpointer data, gpointer user_data)
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	gulong handler_id;
 
-	if (!g_str_has_prefix(conv->name, JUICK_JID))
+	if (!model_has_prefix(conv->name, mblog_store, FALSE))
 		return;
 
 	handler_id = g_signal_connect(G_OBJECT(gtkconv->entry),
@@ -864,7 +973,7 @@ detach_from_conversation(gpointer data, gpointer user_data)
 	PidginConversation *gtkconv = PIDGIN_CONVERSATION(conv);
 	gulong handler_id;
 
-	if (!g_str_has_prefix(conv->name, JUICK_JID))
+	if (!model_has_prefix(conv->name, mblog_store, FALSE))
 		return;
 
 	handler_id = (gulong) g_hash_table_lookup(ht_signal_handlers,
@@ -1206,13 +1315,6 @@ static void *juick_notify_uri(const char *uri) {
 }
 #endif
 
-enum {
-	STRING0_COLUMN,
-	STRING1_COLUMN,
-	IS_ON_COLUMN,
-	N_COLUMNS
-};
-
 static void
 populate_model(GtkListStore *store)
 {
@@ -1220,21 +1322,23 @@ populate_model(GtkListStore *store)
 
 	gtk_list_store_append(store, &iter);
 	gtk_list_store_set(store, &iter,
-			STRING0_COLUMN, "juick@juick.com",
-			STRING1_COLUMN, "juick@juick.com",
-			IS_ON_COLUMN, TRUE,
+			IN_COLUMN, "juick@juick.com",
+			OUT_COLUMN, "juick@juick.com",
+			ACTIVE_COLUMN, TRUE,
 			-1);
 	gtk_list_store_append(store, &iter);
 	gtk_list_store_set(store, &iter,
-			STRING0_COLUMN, "jubo@nologin.ru",
-			STRING1_COLUMN, "juick@juick.com",
-			IS_ON_COLUMN, TRUE,
+			IN_COLUMN, "jubo@nologin.ru",
+			OUT_COLUMN, "juick@juick.com",
+			ACTIVE_COLUMN, TRUE,
 			-1);
 	gtk_list_store_append(store, &iter);
 	gtk_list_store_set(store, &iter,
-			STRING0_COLUMN, "psto@psto.net",
-			STRING1_COLUMN, "psto@psto.net",
-			IS_ON_COLUMN, TRUE,
+			IN_COLUMN, "psto@psto.net",
+//			IN_COLUMN, "psto",
+			OUT_COLUMN, "psto@psto.net",
+//			OUT_COLUMN, "psto",
+			ACTIVE_COLUMN, TRUE,
 			-1);
 }
 
@@ -1316,7 +1420,6 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 	GtkWidget *vbox;
 	GtkCellRenderer *renderer;
 	GtkTreeViewColumn *column;
-	GtkListStore *store;
 	GtkTreeSelection *selection;
 
 	ret = gtk_vbox_new(FALSE, PIDGIN_HIG_CAT_SPACE);
@@ -1355,25 +1458,21 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 			GTK_POLICY_AUTOMATIC);
 	gtk_widget_show(win);
 
-	store = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN);
-	populate_model(store);
-	plugin->extra = store;
-
-	tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(store));
+	tree = gtk_tree_view_new_with_model(mblog_store);
 	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(tree), TRUE);
 	gtk_widget_set_size_request(tree, -1, 200);
 
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(G_OBJECT(renderer), "editable", TRUE, NULL);
 	column = gtk_tree_view_column_new_with_attributes(_("In"),
-			renderer, "text", STRING0_COLUMN, NULL);
+			renderer, "text", IN_COLUMN, NULL);
 	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
 	gtk_tree_view_column_set_fixed_width(column, 150);
 	gtk_tree_view_column_set_resizable(column, TRUE);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
 
 	column = gtk_tree_view_column_new_with_attributes(_("Out"),
-			renderer, "text", STRING1_COLUMN, NULL);
+			renderer, "text", OUT_COLUMN, NULL);
 	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
 	gtk_tree_view_column_set_fixed_width(column, 150);
 	gtk_tree_view_column_set_resizable(column, TRUE);
@@ -1382,7 +1481,7 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 	renderer = gtk_cell_renderer_toggle_new();
 	g_object_set(G_OBJECT(renderer), "activatable", TRUE, NULL);
 	column = gtk_tree_view_column_new_with_attributes(_("Active"),
-			renderer, "active", IS_ON_COLUMN, NULL);
+			renderer, "active", ACTIVE_COLUMN, NULL);
 	gtk_tree_view_column_set_resizable(column, TRUE);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
 
@@ -1559,6 +1658,11 @@ init_plugin(PurplePlugin *plugin)
 	plugin->info->name = _(plugin->info->name);
 	plugin->info->summary = _(plugin->info->summary);
 	plugin->info->description = _(plugin->info->description);
+
+	mblog_store = GTK_TREE_MODEL(
+			gtk_list_store_new(N_COLUMNS, G_TYPE_STRING,
+					G_TYPE_STRING, G_TYPE_BOOLEAN));
+	populate_model(GTK_LIST_STORE(mblog_store));
 
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
