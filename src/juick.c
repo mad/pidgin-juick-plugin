@@ -72,6 +72,7 @@
 #define PREF_IS_SHOW_JUICK PREF_PREFIX "/is_show_juick"
 #define PREF_IS_INSERT_ONLY PREF_PREFIX "/is_insert_only"
 
+const gchar *MBLOG_CONFIG = "mblog";
 const gchar *IMAGE_PREFIX = "http://i.juick.com/p";
 
 static GHashTable *ht_signal_handlers = NULL;   /* <text_buffer, handler_id> */
@@ -84,6 +85,12 @@ enum {
 };
 
 static GtkTreeModel *mblog_store;
+
+static void
+save_conf(GtkTreeModel *model);
+
+static GtkListStore *
+load_conf(void);
 
 static void
 add_warning_message(GString *output, gchar *src, int tag_max)
@@ -1285,33 +1292,6 @@ static void *juick_notify_uri(const char *uri) {
 #endif
 
 static void
-populate_model(GtkListStore *store)
-{
-	GtkTreeIter iter;
-
-	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter,
-			IN_COLUMN, "juick@juick.com",
-			OUT_COLUMN, "juick@juick.com",
-			ACTIVE_COLUMN, TRUE,
-			-1);
-	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter,
-			IN_COLUMN, "jubo@nologin.ru",
-			OUT_COLUMN, "juick@juick.com",
-			ACTIVE_COLUMN, TRUE,
-			-1);
-	gtk_list_store_append(store, &iter);
-	gtk_list_store_set(store, &iter,
-			IN_COLUMN, "psto@psto.net",
-//			IN_COLUMN, "psto",
-			OUT_COLUMN, "psto@psto.net",
-//			OUT_COLUMN, "psto",
-			ACTIVE_COLUMN, TRUE,
-			-1);
-}
-
-static void
 add_button_clicked_cb(GtkWidget *widget, GtkTreeSelection *selection)
 {
 	UNUSED(widget);
@@ -1324,6 +1304,7 @@ add_button_clicked_cb(GtkWidget *widget, GtkTreeSelection *selection)
 				0, _("unnamed"),
 				1, _("unnamed"), -1);
 	gtk_tree_selection_select_iter (selection, &iter);
+	save_conf(model);
 }
 
 static void
@@ -1340,6 +1321,7 @@ del_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
 			gtk_tree_selection_select_iter(selection,&iter);
 		}
 	}
+	save_conf(model);
 }
 
 static void
@@ -1361,6 +1343,7 @@ up_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
 		}
 		gtk_tree_path_free (path);
 	}
+	save_conf(model);
 }
 
 static void
@@ -1379,6 +1362,31 @@ down_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
 					&iter, &iter1);
 		}
 	}
+	save_conf(model);
+}
+
+static void on_edited(GtkCellRendererText *cellrenderertext,
+					  gchar *path, gchar *arg2, gpointer data)
+{
+	UNUSED(cellrenderertext);
+	GtkTreeIter iter;
+	GValue val;
+
+	if (arg2[0] == '\0') {
+		gdk_beep();
+		return;
+	}
+
+	g_return_if_fail(gtk_tree_model_get_iter_from_string(mblog_store, &iter, path));
+	val.g_type = 0;
+	gtk_tree_model_get_value(mblog_store, &iter, GPOINTER_TO_INT(data), &val);
+
+	if (strcmp(arg2, g_value_get_string(&val))) {
+		gtk_list_store_set(GTK_LIST_STORE(mblog_store), &iter, GPOINTER_TO_INT(data), arg2, -1);
+		save_conf(mblog_store);
+	}
+	g_value_unset(&val);
+	save_conf(mblog_store);
 }
 
 static void
@@ -1398,10 +1406,11 @@ active_toggled_cb(GtkCellRendererToggle *cellrenderertoggle,
 	gtk_list_store_set(GTK_LIST_STORE(model), &iter,
 					   ACTIVE_COLUMN, !enabled,
 					   -1);
+	save_conf(model);
 }
 
 static GtkWidget*
-get_plugin_pref_frame(PurplePlugin *plugin)
+get_config_frame(PurplePlugin *plugin)
 {
 	UNUSED(plugin);
 	GtkWidget *ret, *win, *tree, *button_box, *button;
@@ -1452,6 +1461,8 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(G_OBJECT(renderer), "editable", TRUE, NULL);
+	g_signal_connect(G_OBJECT(renderer), "edited",
+		G_CALLBACK(on_edited), GINT_TO_POINTER(IN_COLUMN));
 	column = gtk_tree_view_column_new_with_attributes(_("In"),
 			renderer, "text", IN_COLUMN, NULL);
 	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
@@ -1459,6 +1470,10 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 	gtk_tree_view_column_set_resizable(column, TRUE);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
 
+	renderer = gtk_cell_renderer_text_new();
+	g_object_set(G_OBJECT(renderer), "editable", TRUE, NULL);
+	g_signal_connect(G_OBJECT(renderer), "edited",
+		G_CALLBACK(on_edited), GINT_TO_POINTER(OUT_COLUMN));
 	column = gtk_tree_view_column_new_with_attributes(_("Out"),
 			renderer, "text", OUT_COLUMN, NULL);
 	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
@@ -1517,6 +1532,9 @@ plugin_load(PurplePlugin *plugin)
 
 	void *jabber_handle = purple_plugins_find_with_id("prpl-jabber");
 	void *conv_handle = purple_conversations_get_handle();
+
+	mblog_store = GTK_TREE_MODEL(load_conf());
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
 
 #if PURPLE_VERSION_CHECK(2, 6, 0)
 	gtk_imhtml_class_register_protocol("j://", juick_url_clicked_cb,
@@ -1592,7 +1610,7 @@ plugin_unload(PurplePlugin *plugin)
 
 static PidginPluginUiInfo ui_info =
 {
-	get_plugin_pref_frame,
+	get_config_frame,
 	0, /* page_num (reserved) */
 	/* padding */
 	NULL,
@@ -1636,6 +1654,123 @@ static PurplePluginInfo info =
 	NULL
 };
 
+static int buf_get_line(char *ibuf, char **buf, int *position, int len)
+{
+	int pos = *position;
+	int spos = pos;
+
+	if (pos == len)
+		return 0;
+
+	while (!(ibuf[pos] == '\n' ||
+	         (ibuf[pos] == '\r' && ibuf[pos + 1] != '\n')))
+	{
+		pos++;
+		if (pos == len)
+			return 0;
+	}
+
+	if (pos != 0 && ibuf[pos] == '\n' && ibuf[pos - 1] == '\r')
+		ibuf[pos - 1] = '\0';
+
+	ibuf[pos] = '\0';
+	*buf = &ibuf[spos];
+
+	pos++;
+	*position = pos;
+
+	return 1;
+}
+
+static void
+save_conf(GtkTreeModel *model)
+{
+	GString *data;
+	GtkTreeIter iter;
+	GValue val0, val1, val2;
+
+	data = g_string_new("");
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	if (gtk_tree_model_get_iter_first(model, &iter)) {
+		do {
+			val0.g_type = val1.g_type = val2.g_type = 0;
+			gtk_tree_model_get_value(model, &iter, IN_COLUMN, &val0);
+			gtk_tree_model_get_value(model, &iter, OUT_COLUMN, &val1);
+			gtk_tree_model_get_value(model, &iter, ACTIVE_COLUMN, &val2);
+			g_string_append_printf(data, "ACTIVE %d\nIN %s\nOUT %s\n\n",
+								   g_value_get_boolean(&val2),
+								   g_value_get_string(&val0),
+								   g_value_get_string(&val1));
+			g_value_unset(&val0);
+			g_value_unset(&val1);
+			g_value_unset(&val2);
+		} while (gtk_tree_model_iter_next(model, &iter));
+	}
+	purple_util_write_data_to_file(MBLOG_CONFIG, data->str, -1);
+
+	g_string_free(data, TRUE);
+}
+
+static GtkListStore *
+load_conf(void)
+{
+	const char * const defaultconf =
+		"IN juick@juick.com\nOUT juick@juick.com\n"
+		"ACTIVE 1\nIN jubo@nologin.ru\nOUT juick@juick.com\n"
+		"IN psto@psto.net\nOUT psto@psto.net\n";
+	gchar *buf;
+	gchar *ibuf;
+	gsize size;
+	int pnt = 0;
+	char in[255] = "";
+	char out[255] = "";
+	gboolean active = TRUE;
+	GtkListStore *model = NULL;
+
+	purple_debug_info(DBGID, "%s\n", __FUNCTION__);
+
+	buf = g_build_filename(purple_user_dir(), MBLOG_CONFIG, NULL);
+	g_file_get_contents(buf, &ibuf, &size, NULL);
+	g_free(buf);
+	if (!ibuf) {
+		ibuf = g_strdup(defaultconf);
+		size = strlen(defaultconf);
+	}
+
+	model = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING,
+					G_TYPE_STRING, G_TYPE_BOOLEAN);
+	while (buf_get_line(ibuf, &buf, &pnt, (int)size)) {
+		if (*buf != '#') {
+			if (!g_ascii_strncasecmp(buf, "IN ", 3))
+			{
+				strncpy(in, buf + 3, 255);
+			}
+			else if(!g_ascii_strncasecmp(buf, "ACTIVE ", 7))
+			{
+				active = *(buf+7) == '0' ? FALSE : TRUE;
+			}
+			else if(!g_ascii_strncasecmp(buf, "OUT ", 4))
+			{
+				strncpy(out, buf + 4, 255);
+				if (*in && *out) {
+					GtkTreeIter iter;
+					gtk_list_store_append(model, &iter);
+					gtk_list_store_set(model, &iter,
+						IN_COLUMN, in,
+						OUT_COLUMN, out,
+						ACTIVE_COLUMN, active,
+						-1);
+				}
+				active = TRUE;
+			}
+		}
+	}
+	g_free(ibuf);
+	return model;
+}
+
 static void
 init_plugin(PurplePlugin *plugin)
 {
@@ -1648,11 +1783,6 @@ init_plugin(PurplePlugin *plugin)
 	plugin->info->name = _(plugin->info->name);
 	plugin->info->summary = _(plugin->info->summary);
 	plugin->info->description = _(plugin->info->description);
-
-	mblog_store = GTK_TREE_MODEL(
-			gtk_list_store_new(N_COLUMNS, G_TYPE_STRING,
-					G_TYPE_STRING, G_TYPE_BOOLEAN));
-	populate_model(GTK_LIST_STORE(mblog_store));
 
 	purple_prefs_add_none(PREF_PREFIX);
 	purple_prefs_add_bool(PREF_IS_HIGHLIGHTING_TAGS, FALSE);
