@@ -1381,6 +1381,25 @@ down_button_clicked_cb (GtkWidget *widget, GtkTreeSelection *selection)
 	}
 }
 
+static void
+active_toggled_cb(GtkCellRendererToggle *cellrenderertoggle,
+						gchar *path, gpointer data)
+{
+	UNUSED(cellrenderertoggle);
+	GtkTreeIter iter;
+	gboolean enabled;
+	GtkTreeModel *model = data;
+
+	g_return_if_fail(gtk_tree_model_get_iter_from_string(GTK_TREE_MODEL(model), &iter, path));
+	gtk_tree_model_get(GTK_TREE_MODEL(model), &iter,
+					   ACTIVE_COLUMN, &enabled,
+					   -1);
+
+	gtk_list_store_set(GTK_LIST_STORE(model), &iter,
+					   ACTIVE_COLUMN, !enabled,
+					   -1);
+}
+
 static GtkWidget*
 get_plugin_pref_frame(PurplePlugin *plugin)
 {
@@ -1448,7 +1467,9 @@ get_plugin_pref_frame(PurplePlugin *plugin)
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
 
 	renderer = gtk_cell_renderer_toggle_new();
-	g_object_set(G_OBJECT(renderer), "activatable", TRUE, NULL);
+	g_signal_connect(G_OBJECT(renderer), "toggled",
+		G_CALLBACK(active_toggled_cb), mblog_store);
+//	g_object_set(G_OBJECT(renderer), "activatable", TRUE, NULL);
 	column = gtk_tree_view_column_new_with_attributes(_("Active"),
 			renderer, "active", ACTIVE_COLUMN, NULL);
 	gtk_tree_view_column_set_resizable(column, TRUE);
