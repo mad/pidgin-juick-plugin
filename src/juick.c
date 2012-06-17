@@ -373,6 +373,9 @@ body_reformat(GString *output, xmlnode *node, gboolean first)
 	attach = xmlnode_get_attrib(node, "attach");
 	resource = xmlnode_get_attrib(node, "resource");
 	tagn = xmlnode_get_child(node, "tag");
+	if (xmlnode_get_attrib(node, "privacy")) {
+		tags = g_strdup_printf("%s", "*readonly");
+	}
 	// purple_debug_info(DBGID, "Make tags\n");
 	while (tagn) {
 		tag = xmlnode_get_data(tagn);
@@ -896,14 +899,14 @@ window_keypress_cb(GtkWidget *widget, GdkEventKey *event, gpointer data)
 	UNUSED(widget);
 	PurpleConversation *conv = (PurpleConversation *)data;
 	PurpleConvIm *convim;
-	PurpleConnection *gc;
+	//PurpleConnection *gc;
 
 	if (!model_has_prefix(conv->name, mblog_store, FALSE))
 		return FALSE;
 
 	convim = PURPLE_CONV_IM(conv);
-	gc = purple_conversation_get_gc(
-			PIDGIN_CONVERSATION(conv)->active_conv);
+	//gc = purple_conversation_get_gc(
+	//		PIDGIN_CONVERSATION(conv)->active_conv);
 
 	if (event->state & GDK_CONTROL_MASK)
 		switch (event->keyval) {
